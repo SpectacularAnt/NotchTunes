@@ -9,7 +9,7 @@ final class SettingsWindowController {
     func show() {
         if window == nil {
             let panel = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 380, height: 520),
+                contentRect: NSRect(x: 0, y: 0, width: 380, height: 580),
                 styleMask: [.titled, .closable],
                 backing: .buffered,
                 defer: false)
@@ -37,6 +37,16 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 18) {
             Toggle("Keep it visible while a song is loaded", isOn: $settings.keepVisible)
                 .font(.system(size: 12, weight: .semibold))
+
+            VStack(alignment: .leading, spacing: 5) {
+                Toggle("Show on every desktop", isOn: $settings.allDesktops)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(settings.allDesktops
+                     ? "Follows you between desktops, and hides over full-screen apps."
+                     : "Stays on one desktop. Move to This Desktop brings it across.")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
 
             row(title: "Delay before the panel opens",
                 detail: settings.hoverDelay < 0.01
@@ -107,7 +117,7 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
         }
         .padding(22)
-        .frame(width: 380, height: 520)
+        .frame(width: 380, height: 580)
     }
 
     /// One line on whether the bars can actually hear anything.

@@ -12,6 +12,7 @@ final class Settings: ObservableObject {
         static let holdToQuitSeconds = "holdToQuitSeconds"
         static let barsFollowMusic = "barsFollowMusic"
         static let barBounce = "barBounce"
+        static let allDesktops = "allDesktops"
     }
 
     /// How long the cursor has to rest on the notch before the panel opens.
@@ -59,6 +60,12 @@ final class Settings: ObservableObject {
         }
     }
 
+    /// Whether the notch shows on every desktop rather than only the one it
+    /// was put on. Off, "Move to This Desktop" brings it across by hand.
+    @Published var allDesktops: Bool {
+        didSet { UserDefaults.standard.set(allDesktops, forKey: Key.allDesktops) }
+    }
+
     private init() {
         let defaults = UserDefaults.standard
         defaults.register(defaults: [Key.hoverDelay: 0.0,
@@ -67,7 +74,8 @@ final class Settings: ObservableObject {
                                      Key.holdToQuit: true,
                                      Key.holdToQuitSeconds: 2.0,
                                      Key.barsFollowMusic: true,
-                                     Key.barBounce: 0.5])
+                                     Key.barBounce: 0.5,
+                                     Key.allDesktops: false])
         hoverDelay = defaults.double(forKey: Key.hoverDelay)
         peekDuration = defaults.double(forKey: Key.peekDuration)
         keepVisible = defaults.bool(forKey: Key.keepVisible)
@@ -75,6 +83,7 @@ final class Settings: ObservableObject {
         holdToQuitSeconds = defaults.double(forKey: Key.holdToQuitSeconds)
         barsFollowMusic = defaults.bool(forKey: Key.barsFollowMusic)
         barBounce = defaults.double(forKey: Key.barBounce)
+        allDesktops = defaults.bool(forKey: Key.allDesktops)
         // didSet doesn't run during init, so hand the saved value over here.
         AudioLevels.shared.bounce = Float(barBounce)
     }

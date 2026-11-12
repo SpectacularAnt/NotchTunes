@@ -44,6 +44,15 @@ final class NotchWindow: NSPanel {
     private var dragApproaching = false
 
     private var shelfWatch: AnyCancellable?
+    private var desktopsWatch: AnyCancellable?
+
+    /// True while a full-screen app is in front — only tracked while the
+    /// notch is on every desktop, since that's when it could end up on top
+    /// of one.
+    private var fullScreenInFront = false
+
+    private static let oneDesktop: NSWindow.CollectionBehavior = [.moveToActiveSpace, .stationary, .ignoresCycle]
+    private static let everyDesktop: NSWindow.CollectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
 
     init(model: NowPlayingModel, control: PlayerControl, geometry: NotchGeometry) {
         self.model = model
@@ -70,7 +79,8 @@ final class NotchWindow: NSPanel {
         // .statusBar puts us above ordinary windows and above the menu bar.
         level = .statusBar
 
-        // Follow the active desktop, but stay out of full-screen Spaces.
+        // Which desktops it's on: see `applyDesktopBehavior()`. By default,
+        // follow the active desktop but stay out of full-screen Spaces.
         //
         // `.canJoinAllSpaces` used to be here, and "all Spaces" includes the one
         // a full-screen app creates — which is how the bar ended up floating
@@ -83,7 +93,8 @@ final class NotchWindow: NSPanel {
         // and an accessory app with a non-activating panel never does. So the
         // window stays on the desktop it was launched on, and moving it is a
         // deliberate act — see `moveToActiveSpace()` below, on the menu.
-        collectionBehavior = [.moveToActiveSpace, .stationary, .ignoresCycle]
+        collectionBehavior = Self.oneDesktop
+        applyDesktopBehavior()
 
         alphaValue = 0
         contentView = hosting
@@ -95,6 +106,18 @@ final class NotchWindow: NSPanel {
         // Waits a turn, because this is told just *before* the change lands.
         shelfWatch = model.$shelf.dropFirst().sink { [weak self] _ in
             DispatchQueue.main.async { self?.applyPresentation() }
+        }
+
+        // The every-desktop setting takes effect straight away.
+        desktopsWatch = Settings.shared.$allDesktops.dropFirst().sink { [weak self] _ in
+            DispatchQueue.main.async { self?.applyDesktopBehavior() }
+        }
+
+        // Switching desktop, or to another app, may have brought a full-screen
+        // app to the front.
+        let workspace = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.activeSpaceDidChangeNotification, NSWorkspace.didActivateApplicationNotification] {
+            workspace.addObserver(self, selector: #selector(frontMayHaveChanged), name: name, object: nil)
         }
 
         NotificationCenter.default.addObserver(
@@ -323,6 +346,63 @@ final class NotchWindow: NSPanel {
     ///
     /// Nothing flashes on screen: when the notch is meant to be hidden its alpha
     /// is already zero, so the window being ordered in is invisible.
+    // MARK: - Every desktop
+
+    /// On every desktop, or just the one. "Every desktop" in macOS's terms
+    /// includes the Spaces that full-screen apps make for themselves, which is
+    /// how the bar once ended up floating over a full-screen video — so with
+    /// this on, NotchTunes watches for a full-screen app in front and hides
+    /// itself while there is one.
+    private func applyDesktopBehavior() {
+        let every = Settings.shared.allDesktops
+        collectionBehavior = every ? Self.everyDesktop : Self.oneDesktop
+        logLine(every ? "on every desktop" : "on one desktop")
+        frontMayHaveChanged()
+        if shown != .hidden { orderFrontRegardless() }
+    }
+
+    @objc private func frontMayHaveChanged() {
+        guard Settings.shared.allDesktops else {
+            if fullScreenInFront { fullScreenInFront = false; applyPresentation() }
+            return
+        }
+        // Wait for the desktop-switching animation to finish, or the windows
+        // read are the ones on the way out.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+            guard let self else { return }
+            let now = Self.fullScreenAppInFront(on: self.geometry.screen)
+            guard now != self.fullScreenInFront else { return }
+            self.fullScreenInFront = now
+            logLine(now ? "full-screen app in front: hiding" : "full-screen app gone")
+            self.applyPresentation()
+        }
+    }
+
+    /// Whether the frontmost app has a window covering the whole of the
+    /// notched screen — the menu bar's strip included, which an ordinary
+    /// window, even a zoomed one, never does. Only window sizes and owners are
+    /// read, which needs no permission.
+    static func fullScreenAppInFront(on screen: NSScreen) -> Bool {
+        guard let front = NSWorkspace.shared.frontmostApplication?.processIdentifier,
+              let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements],
+                                                       kCGNullWindowID) as? [[String: Any]]
+        else { return false }
+
+        // Window positions count down from the top of the main display.
+        let mainHeight = NSScreen.screens.first?.frame.height ?? screen.frame.height
+        let target = CGRect(x: screen.frame.minX, y: mainHeight - screen.frame.maxY,
+                            width: screen.frame.width, height: screen.frame.height)
+
+        return windows.contains { window in
+            guard (window[kCGWindowOwnerPID as String] as? Int32) == front,
+                  (window[kCGWindowLayer as String] as? Int) == 0,
+                  let raw = window[kCGWindowBounds as String] as? NSDictionary,
+                  let bounds = CGRect(dictionaryRepresentation: raw) else { return false }
+            return abs(bounds.minX - target.minX) < 2 && abs(bounds.minY - target.minY) < 2
+                && abs(bounds.width - target.width) < 2 && abs(bounds.height - target.height) < 2
+        }
+    }
+
     func moveToActiveSpace() {
         let settled = collectionBehavior
         collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
@@ -368,6 +448,8 @@ final class NotchWindow: NSPanel {
     /// long as a song is loaded — paused included — or just after one starts if
     /// you'd rather it only announced itself.
     private var wanted: Presentation {
+        // On every desktop, but never over a full-screen app.
+        if Settings.shared.allDesktops && fullScreenInFront { return .hidden }
         // A drag on its way in beats everything, song or no song.
         if dragApproaching { return .dropTarget }
         // Otherwise there has to be something to show: a song, or something

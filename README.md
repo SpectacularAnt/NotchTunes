@@ -93,6 +93,7 @@ while it's open). Changes apply straight away and are remembered.
 | Setting | Default | What it does |
 | --- | --- | --- |
 | Keep it visible while a song is loaded | On | Leaves the bar up the whole time there's a song in Music, paused included. Turn it **off** if you'd rather it only announced new songs and then got out of the way. |
+| Show on every desktop | Off | The notch follows you to every desktop, and hides itself while a full-screen app is in front — macOS counts each full-screen app as a desktop of its own, so without that check it would float over full-screen videos. Off, it stays on one desktop and **Move to This Desktop** brings it across. |
 | Delay before the panel opens | Instant | How long your cursor has to rest on the notch before the panel opens. Raise it if the panel opens when you're only reaching for the menu bar. Leaving the notch early cancels it, so passing over opens nothing. |
 | How long a new song is announced | 3 seconds | Only used when the setting above is **off**: how long the bar appears when a song starts. Set it to **Off** to stop announcing new songs at all. |
 | Hold the panel to quit | On | Pressing and holding empty space on the open panel quits the app. See below. |

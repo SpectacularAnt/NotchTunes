@@ -247,6 +247,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuItemValidation
 
     /// Ticks the style that's showing, while the visualizer is open.
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        // Nothing to move while the notch is on every desktop already.
+        if item.action == #selector(moveToThisDesktop) {
+            return !Settings.shared.allDesktops
+        }
         if item.action == #selector(openVisualizer(_:)) {
             let showing = visualizer.currentStyle?.rawValue
             item.state = (showing != nil && showing == item.representedObject as? String) ? .on : .off
