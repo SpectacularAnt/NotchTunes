@@ -113,9 +113,9 @@ struct SettingsView: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 5) {
-                Toggle("Block the Dock in Study Mode", isOn: $settings.studyBlocksDock)
+                Toggle("Keep the Dock away in Study Mode", isOn: $settings.studyBlocksDock)
                     .font(.system(size: 12, weight: .semibold))
-                Text("Covers the Dock so it can't be opened until Study Mode ends.")
+                Text("It won't appear until Study Mode ends. It restarts for a moment as Study Mode starts and ends.")
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
             }

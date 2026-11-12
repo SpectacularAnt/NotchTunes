@@ -100,7 +100,7 @@ while it's open). Changes apply straight away and are remembered.
 | How long to hold | 2 seconds | Anywhere from 1 to 5 seconds. |
 | Moving bars follow the music | On | The bars listen to the music and move with it. Off, they move on their own pattern. The line beneath says whether it can hear anything right now. See below. |
 | How bouncy the bars are | Middle | From **Calm** to **Bouncy**: how big a beat has to be to send the bars to the top, how quickly they drop back, and — toward Calm — how much beats move them at all. The middle is how they were tuned. Only used while the bars follow the music. |
-| Block the Dock in Study Mode | Off | Covers the Dock while Study Mode is on, so it can't be opened. See Study Mode. |
+| Keep the Dock away in Study Mode | Off | The Dock won't appear while Study Mode is on. See Study Mode. |
 | Show the battery in Study Mode | 20% | The battery appears in the strip once it's at or below this level. All the way right shows it always. |
 
 ## The controls
@@ -424,17 +424,20 @@ Mode**, then how long: **Until I End It**, or 25 minutes to 2 hours.
   the menu bar comes back and NotchTunes keeps running. This always works in
   Study Mode, even with hold-to-quit switched off, since the menu is covered.
 - **When a timer runs out**, a soft chime plays and the menu bar comes back.
-- **Block the Dock** (Settings, off by default): a Dock that's always shown is
-  covered by a black band. A Dock that hides itself gets a band that appears
-  when the cursor reaches that very edge — exactly when the Dock would slide
-  in — and goes once you move away, so it never sits over your work otherwise.
-  macOS doesn't let another app switch the Dock off, so it's covered instead.
+- **Keep the Dock away** (Settings, off by default): the Dock won't appear
+  until Study Mode ends. macOS has no switch for another app to turn the Dock
+  off, so this uses the Dock's own settings: hiding on, with a thousand-second
+  wait before it slides in — long enough that it never does. Your original
+  values are saved first and put back when Study Mode ends, when NotchTunes
+  quits, and at the next launch if it ever closed mid-session. The Dock
+  restarts for a moment as Study Mode starts and ends, which is how it picks
+  up the change.
 
 What it doesn't block: ⌘-Tab, Mission Control, Spotlight and keyboard
 shortcuts all still work. It covers the notched screen; other displays keep
 their menu bars.
 
-`Tools/test-study.sh` checks the battery and Dock readings, headlessly.
+`Tools/test-study.sh` checks the battery reading, and the Dock commands — built and checked, never run.
 
 ## The clipboard
 

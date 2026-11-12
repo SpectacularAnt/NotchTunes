@@ -9,7 +9,7 @@ import SwiftUI
 /// battery falls below a level you choose, and the time left if a timer is
 /// running. The music notch carries on working on top of it.
 ///
-/// Optionally, the Dock is blocked too (Settings). And the way out is the same
+/// Optionally, the Dock is kept from appearing too (Settings). And the way out is the same
 /// press-and-hold as hold-to-quit, except that here it ends Study Mode instead
 /// of quitting — the menu bar comes back, and NotchTunes keeps running.
 final class StudyController: ObservableObject {
@@ -31,7 +31,6 @@ final class StudyController: ObservableObject {
     }
 
     private var strip: NSPanel?
-    private var dockCover: NSPanel?
     private var ticker: Timer?
     private var holdDetector = HoldToQuitDetector()
 
@@ -49,7 +48,7 @@ final class StudyController: ObservableObject {
         isActive = true
         readBattery()
         showStrip(on: geometry)
-        if Settings.shared.studyBlocksDock { showDockCover() }
+        updateDock()
 
         // Once a second, for the time left. Everything else it shows changes
         // far less often, and is checked along the way.
@@ -71,8 +70,7 @@ final class StudyController: ObservableObject {
         ticker = nil
         strip?.orderOut(nil)
         strip = nil
-        dockCover?.orderOut(nil)
-        dockCover = nil
+        updateDock()
         logLine("study mode: off")
         onChange?(false)
     }
@@ -89,9 +87,7 @@ final class StudyController: ObservableObject {
         }
         if tickCount % 30 == 0 { readBattery() }
         // The Dock setting can be changed mid-session.
-        if Settings.shared.studyBlocksDock != (dockCover != nil) {
-            if Settings.shared.studyBlocksDock { showDockCover() } else { dockCover?.orderOut(nil); dockCover = nil }
-        }
+        updateDock()
     }
 
     // MARK: The strip
@@ -153,113 +149,14 @@ final class StudyController: ObservableObject {
 
     // MARK: The Dock
 
-    /// Blocks the Dock while Study Mode is on, if that's switched on.
-    ///
-    /// macOS doesn't let another app switch the Dock off, so this covers it
-    /// instead, with a window one level above the Dock's own:
-    ///  - a Dock that's always shown gets a black band over it, which nothing
-    ///    else ever sits under anyway;
-    ///  - a Dock that hides itself gets a band that appears when the cursor
-    ///    reaches that very edge — which is exactly when the Dock would slide
-    ///    in — stays while you're over the Dock's area, and vanishes when you
-    ///    move away, so it doesn't sit over your apps the rest of the time.
-    private func showDockCover() {
-        guard let screen = NSScreen.screens.first else { return }    // the Dock lives on the main display
-        let dock = Self.dockArea(on: screen)
+    private var dockKeptAway = false
 
-        let panel = CoveringPanel(contentRect: dock.frame,
-                                  styleMask: [.borderless, .nonactivatingPanel],
-                                  backing: .buffered, defer: false)
-        panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.dockWindow)) + 1)
-        panel.backgroundColor = .black
-        panel.isOpaque = true
-        panel.hasShadow = false
-        panel.ignoresMouseEvents = false
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
-        panel.setFrame(dock.frame, display: true)
-        dockCoverHides = dock.hides
-        dockCoverZone = dock.frame
-        dockSide = (CFPreferencesCopyAppValue("orientation" as CFString, "com.apple.dock" as CFString) as? String) ?? "bottom"
-        if dock.hides {
-            panel.alphaValue = 0
-            panel.ignoresMouseEvents = true
-        }
-        panel.orderFrontRegardless()
-        dockCover = panel
-    }
-
-    private var dockCoverHides = false
-    private var dockCoverZone = NSRect.zero
-    private var dockCoverShowing = false
-    private var leftDockEdgeAt: Date?
-
-    /// For a Dock that hides itself: shows the cover while the cursor is at
-    /// that edge, and for a moment after, while the Dock slides away.
-    func updateDockCover(cursor: NSPoint) {
-        guard isActive, dockCoverHides, let dockCover else { return }
-        // It only *starts* at the very edge of the screen — where the Dock is
-        // summoned — so working near the bottom of a window doesn't bring it
-        // up. Once up, it stays while you're anywhere over the Dock's band.
-        let atEdge = dockCoverShowing
-            ? dockCoverZone.contains(cursor)
-            : dockCoverZone.contains(cursor) && distanceToOuterEdge(cursor) < 3
-        if atEdge {
-            leftDockEdgeAt = nil
-            if !dockCoverShowing {
-                dockCoverShowing = true
-                dockCover.alphaValue = 1
-                dockCover.ignoresMouseEvents = false
-            }
-        } else if dockCoverShowing {
-            if leftDockEdgeAt == nil { leftDockEdgeAt = Date() }
-            if let left = leftDockEdgeAt, Date().timeIntervalSince(left) > 0.6 {
-                dockCoverShowing = false
-                dockCover.alphaValue = 0
-                dockCover.ignoresMouseEvents = true
-            }
-        }
-    }
-
-    private var dockSide = "bottom"
-
-    /// How far the cursor is from the screen edge the Dock lives on.
-    private func distanceToOuterEdge(_ point: NSPoint) -> CGFloat {
-        switch dockSide {
-        case "left": return point.x - dockCoverZone.minX
-        case "right": return dockCoverZone.maxX - point.x
-        default: return point.y - dockCoverZone.minY
-        }
-    }
-
-    /// Where the Dock is and whether it hides itself, read from the Dock's own
-    /// settings — reading them needs no permission, and nothing is changed.
-    static func dockArea(on screen: NSScreen) -> (frame: NSRect, hides: Bool) {
-        func setting<T>(_ key: String) -> T? {
-            CFPreferencesCopyAppValue(key as CFString, "com.apple.dock" as CFString) as? T
-        }
-        let side: String = setting("orientation") ?? "bottom"
-        let hides: Bool = setting("autohide") ?? false
-        let tile = CGFloat((setting("tilesize") as Double?) ?? 48)
-
-        let full = screen.frame, usable = screen.visibleFrame
-        // A Dock that's always shown takes its room out of the usable area, so
-        // that difference is exactly its size. A hidden one doesn't, so its
-        // size is worked out from its icons, with a margin.
-        let reserved: CGFloat
-        switch side {
-        case "left": reserved = usable.minX - full.minX
-        case "right": reserved = full.maxX - usable.maxX
-        default: reserved = usable.minY - full.minY
-        }
-        let thickness = (hides || reserved < 4) ? tile + 24 : reserved
-
-        let frame: NSRect
-        switch side {
-        case "left": frame = NSRect(x: full.minX, y: full.minY, width: thickness, height: full.height)
-        case "right": frame = NSRect(x: full.maxX - thickness, y: full.minY, width: thickness, height: full.height)
-        default: frame = NSRect(x: full.minX, y: full.minY, width: full.width, height: thickness)
-        }
-        return (frame, hides || reserved < 4)
+    /// Keeps the Dock from appearing, or lets it back, to match the setting.
+    private func updateDock() {
+        let wanted = isActive && Settings.shared.studyBlocksDock
+        guard wanted != dockKeptAway else { return }
+        dockKeptAway = wanted
+        if wanted { DockSuppressor.keepAway() } else { DockSuppressor.restore() }
     }
 
     // MARK: The battery
@@ -390,5 +287,125 @@ struct StudyStripView: View {
             .font(.system(size: 12, weight: .medium))
             .foregroundStyle(.white.opacity(0.55))
         }
+    }
+}
+
+// MARK: - Keeping the Dock away
+
+/// Stops the Dock from appearing during Study Mode, and puts it back after.
+///
+/// macOS has no switch for another app to turn the Dock off, but the Dock's
+/// own settings get most of the way: a Dock set to hide itself waits a moment
+/// before sliding in, and that wait can be set to a thousand seconds — long
+/// enough that it never comes. So Study Mode turns hiding on with that wait,
+/// and afterwards puts back exactly what was there before.
+///
+/// The catch: the Dock only notices new settings when it restarts, so it
+/// blinks for a second when Study Mode starts and ends. And since this
+/// changes a real setting, the original values are saved first, and put back
+/// when Study Mode ends, when NotchTunes quits, and — in case it ever closed
+/// unexpectedly mid-session — the next time it starts.
+enum DockSuppressor {
+
+    /// What the Dock's two settings were before. Nil means the setting
+    /// wasn't there at all, which is different from being false or zero, and
+    /// is put back by removing it again.
+    struct Original: Equatable {
+        var autohide: Bool?
+        var delay: Double?
+    }
+
+    private static let savedKey = "dockOriginalSettings"
+    private static let dock = "com.apple.dock" as CFString
+
+    static func keepAway() {
+        guard UserDefaults.standard.dictionary(forKey: savedKey) == nil else { return }   // already away
+        let original = Original(
+            autohide: CFPreferencesCopyAppValue("autohide" as CFString, dock) as? Bool,
+            delay: (CFPreferencesCopyAppValue("autohide-delay" as CFString, dock) as? NSNumber)?.doubleValue)
+        save(original)
+        run(commandsToKeepAway())
+        logLine("study mode: Dock kept away")
+    }
+
+    /// `waiting` runs the commands before returning — needed when NotchTunes
+    /// is quitting, or it would be gone before they ran.
+    static func restore(waiting: Bool = false) {
+        guard let original = saved() else { return }
+        run(commandsToRestore(original), waiting: waiting)
+        UserDefaults.standard.removeObject(forKey: savedKey)
+        logLine("study mode: Dock back")
+    }
+
+    /// At launch: if settings are still saved, NotchTunes closed while the
+    /// Dock was away. Put it back.
+    static func restoreIfLeftAway() {
+        if saved() != nil {
+            logLine("study mode: putting back a Dock left away last time")
+            restore()
+        }
+    }
+
+    // MARK: The commands — plain lists, so they can be tested without running
+
+    static func commandsToKeepAway() -> [[String]] {
+        [["/usr/bin/defaults", "write", "com.apple.dock", "autohide", "-bool", "true"],
+         ["/usr/bin/defaults", "write", "com.apple.dock", "autohide-delay", "-float", "1000"],
+         ["/usr/bin/killall", "Dock"]]
+    }
+
+    static func commandsToRestore(_ original: Original) -> [[String]] {
+        var commands: [[String]] = []
+        if let hide = original.autohide {
+            commands.append(["/usr/bin/defaults", "write", "com.apple.dock", "autohide", "-bool", hide ? "true" : "false"])
+        } else {
+            commands.append(["/usr/bin/defaults", "delete", "com.apple.dock", "autohide"])
+        }
+        if let delay = original.delay {
+            commands.append(["/usr/bin/defaults", "write", "com.apple.dock", "autohide-delay", "-float", String(delay)])
+        } else {
+            commands.append(["/usr/bin/defaults", "delete", "com.apple.dock", "autohide-delay"])
+        }
+        commands.append(["/usr/bin/killall", "Dock"])
+        return commands
+    }
+
+    // MARK: Saving the originals
+
+    static func encode(_ original: Original) -> [String: Any] {
+        var dictionary: [String: Any] = [:]
+        if let hide = original.autohide { dictionary["autohide"] = hide }
+        if let delay = original.delay { dictionary["delay"] = delay }
+        dictionary["saved"] = true      // so an empty original still counts as saved
+        return dictionary
+    }
+
+    static func decode(_ dictionary: [String: Any]) -> Original {
+        Original(autohide: dictionary["autohide"] as? Bool, delay: (dictionary["delay"] as? NSNumber)?.doubleValue)
+    }
+
+    private static func save(_ original: Original) {
+        UserDefaults.standard.set(encode(original), forKey: savedKey)
+    }
+
+    private static func saved() -> Original? {
+        UserDefaults.standard.dictionary(forKey: savedKey).map(decode)
+    }
+
+    /// Runs each command in turn, waiting for each. They take a moment, so
+    /// it's off the main thread.
+    private static func run(_ commands: [[String]], waiting: Bool = false) {
+        let work = {
+            for command in commands {
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: command[0])
+                process.arguments = Array(command.dropFirst())
+                process.standardOutput = FileHandle.nullDevice
+                process.standardError = FileHandle.nullDevice
+                try? process.run()
+                process.waitUntilExit()
+            }
+        }
+        if waiting { work() } else { DispatchQueue.global(qos: .userInitiated).async(execute: work) }
     }
 }

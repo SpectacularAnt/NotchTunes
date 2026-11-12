@@ -1,5 +1,5 @@
 #!/bin/bash
-# Tests Study Mode's readings: the battery, and where the Dock is. Reads only —
+# Tests Study Mode: the battery reading, and the Dock commands (built, never run) —
 # nothing is covered, and nothing appears on screen.
 set -euo pipefail
 cd "$(dirname "$0")/.."

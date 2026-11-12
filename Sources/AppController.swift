@@ -30,6 +30,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuItemValidation
     private var pollTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // If NotchTunes closed while Study Mode was keeping the Dock away, put
+        // the Dock back.
+        DockSuppressor.restoreIfLeftAway()
+
         // The clipboard doesn't outlive the app, so pictures saved for it last
         // time are no longer wanted.
         Shelf.removeSavedImages()
@@ -108,7 +112,6 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuItemValidation
                         let down = NSEvent.pressedMouseButtons & 1 != 0
                         let now = ProcessInfo.processInfo.systemUptime
                         self?.study.updateHold(cursor: point, buttonDown: down, time: now)
-                        self?.study.updateDockCover(cursor: point)
                         self?.watchForDrag(at: point)
                         self?.window.updateBarHover(cursor: point)
                         self?.window.updateHoldToQuit(
@@ -266,6 +269,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuItemValidation
             item.state = (showing != nil && showing == item.representedObject as? String) ? .on : .off
         }
         return true
+    }
+
+    /// Quitting mid-Study-Mode — at logout, say — puts the Dock back first.
+    func applicationWillTerminate(_ notification: Notification) {
+        DockSuppressor.restore(waiting: true)
     }
 
     @objc private func startStudyMode(_ sender: NSMenuItem) {
