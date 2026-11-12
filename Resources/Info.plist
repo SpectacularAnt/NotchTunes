@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>NotchTunes</string>
+    <key>CFBundleDisplayName</key>
+    <string>NotchTunes</string>
+    <key>CFBundleIdentifier</key>
+    <string>local.notchtunes</string>
+    <key>CFBundleExecutable</key>
+    <string>NotchTunes</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>14.0</string>
+
+    <!-- The icon, as Contents/Resources/AppIcon.icns. The extension is left off
+         on purpose: that is the form this key expects. -->
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+
+    <!-- Keeps NotchTunes out of the Dock and out of the Cmd-Tab switcher. -->
+    <key>LSUIElement</key>
+    <true/>
+
+    <!-- Shown in the prompt the first time NotchTunes asks Music what is playing. -->
+    <key>NSAppleEventsUsageDescription</key>
+    <string>NotchTunes reads the song Music or Spotify is playing so it can show it under the notch.</string>
+
+    <!-- Shown when macOS asks whether NotchTunes may hear what's playing. -->
+    <key>NSAudioCaptureUsageDescription</key>
+    <string>NotchTunes listens to what Music is playing so its moving bars can follow the beat. Nothing is recorded or kept.</string>
+</dict>
+</plist>

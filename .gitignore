@@ -1,0 +1,10 @@
+# macOS clutter
+.DS_Store
+
+# Built apps never live here: build.sh assembles them in a temporary folder
+# and installs into /Applications. This catches one made by hand.
+*.app/
+
+# A real screenshot of the running app. It shows other windows behind the
+# notch, so it stays on this Mac.
+Resources/screenshot-hover.png
