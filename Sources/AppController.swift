@@ -18,6 +18,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuItemValidation
     private let settingsWindow = SettingsWindowController()
     private lazy var visualizer = VisualizerWindowController(model: model)
     private let permissionsWindow = PermissionsWindowController()
+    private let updater = Updater()
 
     /// While the panel is open, the scrubber and buttons are checked four
     /// times a second.
@@ -253,6 +254,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuItemValidation
         return true
     }
 
+    @objc private func checkForUpdates() {
+        updater.checkForUpdates()
+    }
+
     @objc private func openPermissions() {
         permissionsWindow.show()
     }
@@ -305,6 +310,12 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuItemValidation
         let visualizerItem = NSMenuItem(title: "Visualizer", action: nil, keyEquivalent: "")
         visualizerItem.submenu = visualizerMenu
         menu.addItem(visualizerItem)
+
+        let updates = NSMenuItem(title: "Check for Updates…",
+                                 action: #selector(checkForUpdates),
+                                 keyEquivalent: "")
+        updates.target = self
+        menu.addItem(updates)
 
         let permissions = NSMenuItem(title: "Permissions…",
                                      action: #selector(openPermissions),

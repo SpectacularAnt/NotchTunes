@@ -70,8 +70,10 @@ if [ ! -w "$INSTALL_DIR" ]; then
   exit 1
 fi
 
-# The copy being replaced can't be running.
-if pgrep -x NotchTunes >/dev/null; then
+# The copy being replaced can't be running. Tools/release.sh builds into a
+# temporary folder instead, and sets RELEASE_BUILD so the copy you're using
+# is left alone.
+if [ -z "${RELEASE_BUILD:-}" ] && pgrep -x NotchTunes >/dev/null; then
   echo "Quitting the running copy..."
   pkill -x NotchTunes || true
   sleep 0.5
@@ -86,7 +88,10 @@ codesign --verify --deep "$DEST" && echo "signature verifies"
 # Tell macOS about the new copy, so Finder and Spotlight don't keep showing the
 # old icon or the old path.
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
-[ -x "$LSREGISTER" ] && "$LSREGISTER" -f "$DEST" >/dev/null 2>&1 || true
+# (Not for a release build, which is about to be zipped and deleted.)
+if [ -z "${RELEASE_BUILD:-}" ]; then
+  [ -x "$LSREGISTER" ] && "$LSREGISTER" -f "$DEST" >/dev/null 2>&1 || true
+fi
 
 echo "Installed $DEST"
 echo "Open it with:  open -a NotchTunes"

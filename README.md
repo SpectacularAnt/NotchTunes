@@ -56,6 +56,35 @@ removed — so they can be switched off.
 macOS can't tell an app whether system-audio recording was allowed, so the
 window shows that one as "Asked" until the bars actually hear music.
 
+## Updates
+
+Choose **Check for Updates…** from the music-note menu. NotchTunes asks GitHub
+for the latest release and compares its version with its own:
+
+- **Up to date:** it says so.
+- **Newer version:** it shows what's new and offers **Install and Relaunch**.
+  That downloads the release, checks it really is NotchTunes at that version,
+  quits, swaps the new copy into place, and reopens it. Because each build is
+  signed ad hoc, macOS may ask for NotchTunes' permissions again afterwards.
+
+Nothing is checked or downloaded unless you choose it. The only thing sent to
+GitHub is the request itself, with "NotchTunes" as the program's name.
+
+Checking only works while the repository is **public**: GitHub won't show a
+private repository's releases to an app that isn't signed in.
+
+### Publishing a new version
+
+1. Raise `CFBundleShortVersionString` in `Resources/Info.plist` (and
+   `CFBundleVersion` by one). Copies only offer a version higher than their own.
+2. Commit and push.
+3. Run `./Tools/release.sh "What's new"`. It builds a fresh copy in a temporary
+   folder — the one you're using keeps running — zips it, and publishes it as a
+   GitHub release tagged `v<version>`.
+
+`Tools/test-updater.sh` tests the version comparison (so 1.10 counts as newer
+than 1.9).
+
 ## Settings
 
 Click the music-note icon in the menu bar and choose **Settings…** (or press ⌘,
@@ -261,6 +290,7 @@ shows other windows behind the notch.
 | `Sources/Waveform.swift` | The moving bars, and the colours taken from the cover: one to tint the bars, two for the visualizer's background. The bars are decorative: following the real sound would need permission to record it. |
 | `Sources/Visualizer.swift` | The visualizer window and its two styles. |
 | `Sources/Shelf.swift` | The clipboard: what a drop turns into, and dragging things back out. |
+| `Sources/Updater.swift` | Check for Updates: asks GitHub for the latest release, and installs it. |
 | `Sources/SystemNowPlaying.swift` | Podcasts, through macOS's Now Playing service and the helper in `Helper/`. |
 | `Sources/AudioTap.swift` | Listens to Music's (or Spotify's) sound so the bars can follow it. |
 | `Sources/BandAnalyser.swift` | Splits that sound into six bands, bass to treble — one per bar. Tested by `Tools/test-bands.sh`. |

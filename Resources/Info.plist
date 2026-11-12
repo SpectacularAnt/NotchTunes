@@ -12,10 +12,12 @@
     <string>NotchTunes</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
+    <!-- The version Check for Updates compares against GitHub's latest
+         release. Raise it before running Tools/release.sh. -->
     <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
+    <string>1.1</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>2</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
 
