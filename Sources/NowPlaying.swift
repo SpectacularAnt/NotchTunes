@@ -73,6 +73,13 @@ final class NowPlayingModel: ObservableObject {
     /// area is open.
     @Published var isDropTarget = false
 
+    /// True while Study Mode is on. Holding the panel then ends Study Mode
+    /// rather than quitting.
+    @Published var isStudying = false
+
+    /// What a completed hold does while studying. Set by the app controller.
+    var onStudyHoldComplete: (() -> Void)?
+
     /// Adds what was dropped.
     func keep(_ items: [ShelfItem]) {
         guard !items.isEmpty else { return }

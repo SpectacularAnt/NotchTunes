@@ -13,6 +13,8 @@ final class Settings: ObservableObject {
         static let barsFollowMusic = "barsFollowMusic"
         static let barBounce = "barBounce"
         static let allDesktops = "allDesktops"
+        static let studyBlocksDock = "studyBlocksDock"
+        static let studyBatteryThreshold = "studyBatteryThreshold"
     }
 
     /// How long the cursor has to rest on the notch before the panel opens.
@@ -66,6 +68,16 @@ final class Settings: ObservableObject {
         didSet { UserDefaults.standard.set(allDesktops, forKey: Key.allDesktops) }
     }
 
+    /// Whether Study Mode blocks the Dock as well as the menu bar.
+    @Published var studyBlocksDock: Bool {
+        didSet { UserDefaults.standard.set(studyBlocksDock, forKey: Key.studyBlocksDock) }
+    }
+
+    /// In Study Mode, the battery shows once it's at or below this percentage.
+    @Published var studyBatteryThreshold: Double {
+        didSet { UserDefaults.standard.set(studyBatteryThreshold, forKey: Key.studyBatteryThreshold) }
+    }
+
     private init() {
         let defaults = UserDefaults.standard
         defaults.register(defaults: [Key.hoverDelay: 0.0,
@@ -75,7 +87,9 @@ final class Settings: ObservableObject {
                                      Key.holdToQuitSeconds: 2.0,
                                      Key.barsFollowMusic: true,
                                      Key.barBounce: 0.5,
-                                     Key.allDesktops: false])
+                                     Key.allDesktops: false,
+                                     Key.studyBlocksDock: false,
+                                     Key.studyBatteryThreshold: 20.0])
         hoverDelay = defaults.double(forKey: Key.hoverDelay)
         peekDuration = defaults.double(forKey: Key.peekDuration)
         keepVisible = defaults.bool(forKey: Key.keepVisible)
@@ -84,6 +98,8 @@ final class Settings: ObservableObject {
         barsFollowMusic = defaults.bool(forKey: Key.barsFollowMusic)
         barBounce = defaults.double(forKey: Key.barBounce)
         allDesktops = defaults.bool(forKey: Key.allDesktops)
+        studyBlocksDock = defaults.bool(forKey: Key.studyBlocksDock)
+        studyBatteryThreshold = defaults.double(forKey: Key.studyBatteryThreshold)
         // didSet doesn't run during init, so hand the saved value over here.
         AudioLevels.shared.bounce = Float(barBounce)
     }

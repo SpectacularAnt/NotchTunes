@@ -9,7 +9,7 @@ final class SettingsWindowController {
     func show() {
         if window == nil {
             let panel = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 380, height: 580),
+                contentRect: NSRect(x: 0, y: 0, width: 380, height: 700),
                 styleMask: [.titled, .closable],
                 backing: .buffered,
                 defer: false)
@@ -110,6 +110,25 @@ struct SettingsView: View {
                 .opacity(settings.barsFollowMusic ? 1 : 0.4)
                 .disabled(!settings.barsFollowMusic)
 
+            Divider()
+
+            VStack(alignment: .leading, spacing: 5) {
+                Toggle("Block the Dock in Study Mode", isOn: $settings.studyBlocksDock)
+                    .font(.system(size: 12, weight: .semibold))
+                Text("Covers the Dock so it can't be opened until Study Mode ends.")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
+
+            row(title: "Show the battery in Study Mode",
+                detail: settings.studyBatteryThreshold >= 100
+                    ? "Always shown"
+                    : String(format: "Appears once it's at %.0f%% or below", settings.studyBatteryThreshold),
+                value: $settings.studyBatteryThreshold,
+                range: 5...100,
+                low: "5%",
+                high: "Always")
+
             Spacer(minLength: 0)
 
             Text("Changes apply straight away.")
@@ -117,7 +136,7 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
         }
         .padding(22)
-        .frame(width: 380, height: 580)
+        .frame(width: 380, height: 700)
     }
 
     /// One line on whether the bars can actually hear anything.

@@ -8,6 +8,7 @@ import SwiftUI
 // An optional second argument picks what to draw:
 //   hold      the panel part-way through a hold-to-quit
 //   settings  the settings pane
+//   study            Study Mode's strip, timer running, battery low, mid-hold
 //   permissions      the permissions window, part-way through
 //   permissions-new  the permissions window, nothing asked yet
 //   repeat1   repeat set to "this song"
@@ -47,6 +48,19 @@ func renderPreview(to path: String, mode: String) {
     // The bars are normally drawn as layers, which this renderer can't see.
     Waveform.drawForSnapshot = true
     isRenderingPreview = true
+
+    if mode == "study" {
+        // The right-hand end of the strip, with a timer running, the battery
+        // under the threshold, and a hold under way.
+        guard let screen = NSScreen.screens.first else { exit(1) }
+        let study = StudyController()
+        study.endsAt = Date().addingTimeInterval(25 * 60 - 3)
+        study.battery = .init(percent: 14, charging: false)
+        study.holdProgress = 0.45
+        let notch = NotchGeometry.current()?.notch ?? NSRect(x: screen.frame.midX - 92, y: 0, width: 185, height: 34)
+        write(StudyStripView(study: study, notch: notch, screen: screen.frame), to: path)
+        return
+    }
 
     if mode == "permissions" {
         write(PermissionsView(fixed: (music: .granted, spotify: .notAsked, audioAsked: true))

@@ -19,6 +19,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuItemValidation
     private lazy var visualizer = VisualizerWindowController(model: model)
     private let permissionsWindow = PermissionsWindowController()
     private let updater = Updater()
+    private let study = StudyController()
 
     /// While the panel is open, the scrubber and buttons are checked four
     /// times a second.
@@ -86,6 +87,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuItemValidation
         }
         model.onAirPlayTapped = { [weak self] in self?.showAirPlayMenu() }
 
+        // Study Mode: the panel's hold ends it too, and the panel needs to know
+        // it's on to say so.
+        study.onChange = { [weak self] on in self?.model.isStudying = on }
+        model.onStudyHoldComplete = { [weak self] in self?.study.end() }
+
         // Ask the music apps what is playing: everything now, then quick checks.
         refresh(full: true)
         let timer = Timer(timeInterval: AppController.pollInterval, repeats: true) { [weak self] _ in
@@ -99,6 +105,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuItemValidation
         // it leaves.
         mouse.start(zone: { [weak self] in self?.window.revealZone ?? .zero },
                     onSample: { [weak self] point in
+                        let down = NSEvent.pressedMouseButtons & 1 != 0
+                        let now = ProcessInfo.processInfo.systemUptime
+                        self?.study.updateHold(cursor: point, buttonDown: down, time: now)
+                        self?.study.updateDockCover(cursor: point)
                         self?.watchForDrag(at: point)
                         self?.window.updateBarHover(cursor: point)
                         self?.window.updateHoldToQuit(
@@ -258,6 +268,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuItemValidation
         return true
     }
 
+    @objc private func startStudyMode(_ sender: NSMenuItem) {
+        study.start(minutes: sender.representedObject as? Int)
+    }
+
     @objc private func checkForUpdates() {
         updater.checkForUpdates()
     }
@@ -314,6 +328,22 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuItemValidation
         let visualizerItem = NSMenuItem(title: "Visualizer", action: nil, keyEquivalent: "")
         visualizerItem.submenu = visualizerMenu
         menu.addItem(visualizerItem)
+
+        // Study Mode ▸ for how long. While it's on the menu bar is covered, so
+        // this menu can't be reached then: holding the strip, or the timer, is
+        // how it ends.
+        let studyMenu = NSMenu()
+        let lengths: [(String, Int?)] = [("Until I End It", nil), ("25 Minutes", 25), ("45 Minutes", 45),
+                                          ("1 Hour", 60), ("1½ Hours", 90), ("2 Hours", 120)]
+        for (title, minutes) in lengths {
+            let item = NSMenuItem(title: title, action: #selector(startStudyMode(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = minutes
+            studyMenu.addItem(item)
+        }
+        let studyItem = NSMenuItem(title: "Study Mode", action: nil, keyEquivalent: "")
+        studyItem.submenu = studyMenu
+        menu.addItem(studyItem)
 
         let updates = NSMenuItem(title: "Check for Updates…",
                                  action: #selector(checkForUpdates),

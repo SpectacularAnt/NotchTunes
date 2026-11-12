@@ -77,7 +77,9 @@ final class NotchWindow: NSPanel {
         ignoresMouseEvents = true
 
         // .statusBar puts us above ordinary windows and above the menu bar.
-        level = .statusBar
+        // Two above .statusBar, so it stays on top of Study Mode's strip, which
+        // sits one above it to cover the menu bar's icons.
+        level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 2)
 
         // Which desktops it's on: see `applyDesktopBehavior()`. By default,
         // follow the active desktop but stay out of full-screen Spaces.
@@ -256,7 +258,9 @@ final class NotchWindow: NSPanel {
     /// Feeds one cursor sample to the hold-to-quit detector, and acts on what it
     /// decides. Called on every tick of the cursor poll.
     func updateHoldToQuit(cursor: NSPoint, buttonDown: Bool, time: TimeInterval) {
-        holdDetector.enabled = Settings.shared.holdToQuit
+        // While studying, holding always works — it's how Study Mode ends —
+        // whatever the hold-to-quit setting says.
+        holdDetector.enabled = Settings.shared.holdToQuit || model.isStudying
         holdDetector.duration = Settings.shared.holdToQuitSeconds
         holdDetector.panelFrame = localPanelFrame
         holdDetector.controlFrames = Array(model.barFrames.values) + Array(model.buttonFrames.values)
@@ -269,8 +273,13 @@ final class NotchWindow: NSPanel {
 
         switch outcome {
         case .quit:
-            logLine("held to quit")
-            NSApp.terminate(nil)
+            if model.isStudying {
+                model.holdProgress = nil
+                model.onStudyHoldComplete?()
+            } else {
+                logLine("held to quit")
+                NSApp.terminate(nil)
+            }
 
         case .holding(let elapsed, let progress):
             // An ordinary click on the panel shouldn't flash a hint, so it waits

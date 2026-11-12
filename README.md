@@ -100,6 +100,8 @@ while it's open). Changes apply straight away and are remembered.
 | How long to hold | 2 seconds | Anywhere from 1 to 5 seconds. |
 | Moving bars follow the music | On | The bars listen to the music and move with it. Off, they move on their own pattern. The line beneath says whether it can hear anything right now. See below. |
 | How bouncy the bars are | Middle | From **Calm** to **Bouncy**: how big a beat has to be to send the bars to the top, how quickly they drop back, and — toward Calm — how much beats move them at all. The middle is how they were tuned. Only used while the bars follow the music. |
+| Block the Dock in Study Mode | Off | Covers the Dock while Study Mode is on, so it can't be opened. See Study Mode. |
+| Show the battery in Study Mode | 20% | The battery appears in the strip once it's at or below this level. All the way right shows it always. |
 
 ## The controls
 
@@ -291,6 +293,7 @@ shows other windows behind the notch.
 | `Sources/Waveform.swift` | The moving bars, and the colours taken from the cover: one to tint the bars, two for the visualizer's background. The bars are decorative: following the real sound would need permission to record it. |
 | `Sources/Visualizer.swift` | The visualizer window and its two styles. |
 | `Sources/Shelf.swift` | The clipboard: what a drop turns into, and dragging things back out. |
+| `Sources/StudyMode.swift` | Study Mode: the strip over the menu bar, its clock, battery and timer, holding to end it, and the Dock cover. |
 | `Sources/Updater.swift` | Check for Updates: asks GitHub for the latest release, and installs it. |
 | `Sources/SystemNowPlaying.swift` | Podcasts, through macOS's Now Playing service and the helper in `Helper/`. |
 | `Sources/AudioTap.swift` | Listens to Music's (or Spotify's) sound so the bars can follow it. |
@@ -404,6 +407,34 @@ two tests about holding controls fail.
 The hold has to *begin* on empty panel space, with the panel already open. A
 press that started somewhere else and was dragged in doesn't count, and nor does
 one still held from before the panel opened.
+
+## Study Mode
+
+As few distractions as a Mac allows. From the music-note menu choose **Study
+Mode**, then how long: **Until I End It**, or 25 minutes to 2 hours.
+
+- A **black strip covers the whole menu bar** — every menu and icon, on every
+  desktop, full-screen apps included. Its menus can't be opened.
+- In the top-right corner: a small white **clock**; the **time left**, if a
+  timer's running; and the **battery**, once it's at or below the level set in
+  Settings (red at 10% unless charging).
+- The **music notch keeps working** on top of the strip.
+- **To end it:** press and hold anywhere on the strip (or the open music panel)
+  for the hold-to-quit time. Here it ends Study Mode rather than quitting —
+  the menu bar comes back and NotchTunes keeps running. This always works in
+  Study Mode, even with hold-to-quit switched off, since the menu is covered.
+- **When a timer runs out**, a soft chime plays and the menu bar comes back.
+- **Block the Dock** (Settings, off by default): a Dock that's always shown is
+  covered by a black band. A Dock that hides itself gets a band that appears
+  when the cursor reaches that very edge — exactly when the Dock would slide
+  in — and goes once you move away, so it never sits over your work otherwise.
+  macOS doesn't let another app switch the Dock off, so it's covered instead.
+
+What it doesn't block: ⌘-Tab, Mission Control, Spotlight and keyboard
+shortcuts all still work. It covers the notched screen; other displays keep
+their menu bars.
+
+`Tools/test-study.sh` checks the battery and Dock readings, headlessly.
 
 ## The clipboard
 
