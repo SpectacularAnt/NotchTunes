@@ -91,10 +91,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuItemValidation
         }
         model.onAirPlayTapped = { [weak self] in self?.showAirPlayMenu() }
 
-        // Study Mode: the panel's hold ends it too, and the panel needs to know
-        // it's on to say so.
         study.onChange = { [weak self] on in self?.model.isStudying = on }
-        model.onStudyHoldComplete = { [weak self] in self?.study.end() }
 
         // Ask the music apps what is playing: everything now, then quick checks.
         refresh(full: true)

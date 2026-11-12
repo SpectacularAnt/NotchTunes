@@ -1,6 +1,6 @@
 #!/bin/bash
 # Renders the expanded notch to a PNG so a layout change can be looked at
-# without running the app.  Usage: ./Tools/preview-panel.sh [out.png] [hold|settings|study|permissions|permissions-new|repeat1|airplay|collapsed|shelf|shelf-only|shelf-bar|drop|viz-cover|viz-bars]
+# without running the app.  Usage: ./Tools/preview-panel.sh [out.png] [hold|settings|study|study-start|permissions|permissions-new|repeat1|airplay|collapsed|shelf|shelf-only|shelf-bar|drop|viz-cover|viz-bars]
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -17,7 +17,7 @@ swiftc -sdk "$SDK" -target arm64-apple-macosx14.0 \
   $SOURCES "$STAGE/main.swift" -o "$STAGE/preview"
 
 OUT="${1:-panel-preview.png}"
-MODE="${2:-}"     # optional: hold | settings | study | permissions | permissions-new | repeat1 | airplay | collapsed | shelf | shelf-only | shelf-bar | drop | viz-cover | viz-bars
+MODE="${2:-}"     # optional: hold | settings | study | study-start | permissions | permissions-new | repeat1 | airplay | collapsed | shelf | shelf-only | shelf-bar | drop | viz-cover | viz-bars
 
 "$STAGE/preview" "$OUT" "$MODE"
 

@@ -380,9 +380,9 @@ private struct ControlPanel: View {
         let width: CGFloat = 150
 
         return VStack(spacing: 10) {
-            Image(systemName: model.isStudying ? "book.closed" : "power")
+            Image(systemName: "power")
                 .font(.system(size: 20, weight: .semibold))
-            Text(model.isStudying ? "Keep holding to end Study Mode" : "Keep holding to quit")
+            Text("Keep holding to quit")
                 .font(.system(size: 11, weight: .semibold))
             ZStack(alignment: .leading) {
                 Capsule().fill(Color.white.opacity(0.18))

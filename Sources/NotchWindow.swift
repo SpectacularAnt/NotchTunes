@@ -258,9 +258,7 @@ final class NotchWindow: NSPanel {
     /// Feeds one cursor sample to the hold-to-quit detector, and acts on what it
     /// decides. Called on every tick of the cursor poll.
     func updateHoldToQuit(cursor: NSPoint, buttonDown: Bool, time: TimeInterval) {
-        // While studying, holding always works — it's how Study Mode ends —
-        // whatever the hold-to-quit setting says.
-        holdDetector.enabled = Settings.shared.holdToQuit || model.isStudying
+        holdDetector.enabled = Settings.shared.holdToQuit
         holdDetector.duration = Settings.shared.holdToQuitSeconds
         holdDetector.panelFrame = localPanelFrame
         holdDetector.controlFrames = Array(model.barFrames.values) + Array(model.buttonFrames.values)
@@ -273,13 +271,10 @@ final class NotchWindow: NSPanel {
 
         switch outcome {
         case .quit:
-            if model.isStudying {
-                model.holdProgress = nil
-                model.onStudyHoldComplete?()
-            } else {
-                logLine("held to quit")
-                NSApp.terminate(nil)
-            }
+            // Quits — Study Mode included, which ends with it. Quitting puts
+            // the Dock back first (AppController.applicationWillTerminate).
+            logLine("held to quit")
+            NSApp.terminate(nil)
 
         case .holding(let elapsed, let progress):
             // An ordinary click on the panel shouldn't flash a hint, so it waits

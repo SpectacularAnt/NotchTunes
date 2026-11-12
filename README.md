@@ -413,16 +413,18 @@ one still held from before the panel opened.
 As few distractions as a Mac allows. From the music-note menu choose **Study
 Mode**, then how long: **Until I End It**, or 25 minutes to 2 hours.
 
-- A **black strip covers the whole menu bar** — every menu and icon, on every
-  desktop, full-screen apps included. Its menus can't be opened.
-- In the top-right corner: a small white **clock**; the **time left**, if a
-  timer's running; and the **battery**, once it's at or below the level set in
-  Settings (red at 10% unless charging).
+- The notch's black **stretches out across the whole menu bar** — every menu
+  and icon, on every desktop, full-screen apps included — and its menus can't
+  be opened. Ending runs it backwards: the black springs back into the notch.
+- On the left, an **End** button: Study Mode ends, the menu bar comes back, and
+  NotchTunes keeps running.
+- On the right, in a little from the corner: a small white **clock**; the
+  **time left**, if a timer's running; and the **battery**, once it's at or
+  below the level set in Settings (red at 10% unless charging).
 - The **music notch keeps working** on top of the strip.
-- **To end it:** press and hold anywhere on the strip (or the open music panel)
-  for the hold-to-quit time. Here it ends Study Mode rather than quitting —
-  the menu bar comes back and NotchTunes keeps running. This always works in
-  Study Mode, even with hold-to-quit switched off, since the menu is covered.
+- **Pressing and holding** the strip — or the open music panel — **quits
+  NotchTunes**, Study Mode with it, exactly as hold-to-quit does elsewhere (and
+  switched on and off by the same setting). Quitting puts the Dock back first.
 - **When a timer runs out**, a soft chime plays and the menu bar comes back.
 - **Keep the Dock away** (Settings, off by default): the Dock won't appear
   until Study Mode ends. macOS has no switch for another app to turn the Dock

@@ -9,9 +9,10 @@ import SwiftUI
 /// battery falls below a level you choose, and the time left if a timer is
 /// running. The music notch carries on working on top of it.
 ///
-/// Optionally, the Dock is kept from appearing too (Settings). And the way out is the same
-/// press-and-hold as hold-to-quit, except that here it ends Study Mode instead
-/// of quitting — the menu bar comes back, and NotchTunes keeps running.
+/// Optionally, the Dock is kept from appearing too (Settings). The way out is
+/// the End button at the left of the strip — the menu bar comes back and
+/// NotchTunes keeps running — or the timer, if one was set. Pressing and
+/// holding the strip quits NotchTunes, as holding the panel does.
 final class StudyController: ObservableObject {
 
     @Published private(set) var isActive = false
@@ -21,6 +22,14 @@ final class StudyController: ObservableObject {
     /// How far through a hold on the strip you are, or nil.
     @Published var holdProgress: Double?
     @Published var battery: Battery?
+
+    /// Whether the black is stretched across the whole menu bar, or tucked in
+    /// at the notch. Drives the opening and closing animation.
+    @Published var stripOpen = false
+
+    /// The stretch: the same kind of spring as the notch's own panel, a touch
+    /// slower for the longer distance.
+    static let stretch = Animation.spring(response: 0.5, dampingFraction: 0.86)
 
     /// Told whenever Study Mode starts or ends.
     var onChange: ((Bool) -> Void)?
@@ -68,8 +77,11 @@ final class StudyController: ObservableObject {
         holdProgress = nil
         ticker?.invalidate()
         ticker = nil
-        strip?.orderOut(nil)
+        // Shrink back into the notch, then go.
+        let closing = strip
         strip = nil
+        withAnimation(Self.stretch) { stripOpen = false }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) { closing?.orderOut(nil) }
         updateDock()
         logLine("study mode: off")
         onChange?(false)
@@ -105,40 +117,56 @@ final class StudyController: ObservableObject {
         // so none can end up drawn over it. The music notch sits one level
         // higher still, so it stays on top of the strip.
         panel.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 1)
-        panel.backgroundColor = .black
-        panel.isOpaque = true
+        // Clear, so the black can grow out of the notch: what's drawn is a
+        // shape inside the window, not the window itself.
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
         panel.hasShadow = false
         // Takes the clicks, so the menus underneath can't be opened.
         panel.ignoresMouseEvents = false
         // Every desktop, full-screen apps' included: wherever you go, the
         // menu bar stays covered.
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
-        panel.contentView = NSHostingView(rootView: StudyStripView(study: self, notch: geometry.notch,
+        panel.contentView = FirstClickHostingView(rootView: StudyStripView(study: self, notch: geometry.notch,
                                                                    screen: screen.frame))
         panel.setFrame(frame, display: true)
+        stripOpen = false
         panel.orderFrontRegardless()
         strip = panel
+
+        // A turn later, once it's drawn tucked in at the notch, stretch it out.
+        DispatchQueue.main.async { withAnimation(Self.stretch) { self.stripOpen = true } }
     }
 
     // MARK: Holding to end
 
-    /// Fed from the cursor poll. A press-and-hold anywhere on the strip ends
-    /// Study Mode, after the same time hold-to-quit uses. It always works here,
-    /// even with hold-to-quit switched off — with the menu bar covered, it's
-    /// the way out.
+    /// Where the End button is, in the strip's own coordinates (counted down
+    /// from its top), as the view reports it. A press there is a click on
+    /// End, never the start of a hold.
+    var endButtonFrame: CGRect = .zero
+
+    /// Fed from the cursor poll. Pressing and holding anywhere on the strip
+    /// quits NotchTunes, after the hold-to-quit time — the same gesture as on
+    /// the panel, and switched on and off by the same setting.
     func updateHold(cursor: NSPoint, buttonDown: Bool, time: TimeInterval) {
         guard isActive, let strip else { return }
-        holdDetector.enabled = true
+        holdDetector.enabled = Settings.shared.holdToQuit
         holdDetector.duration = Settings.shared.holdToQuitSeconds
         holdDetector.panelFrame = strip.frame        // screen coordinates, like the cursor
-        holdDetector.controlFrames = []
+        let button = endButtonFrame
+        holdDetector.controlFrames = button.isEmpty ? [] : [CGRect(x: strip.frame.minX + button.minX,
+                                                                    y: strip.frame.maxY - button.maxY,
+                                                                    width: button.width, height: button.height)
+                                                                .insetBy(dx: -4, dy: -4)]
 
         let outcome = holdDetector.feed(.init(time: time, point: cursor,
                                               buttonDown: buttonDown, panelExpanded: true))
         switch outcome {
         case .quit:
-            logLine("study mode: held to end")
-            end()
+            // Quitting ends Study Mode with it, and puts the Dock back first
+            // (AppController.applicationWillTerminate).
+            logLine("study mode: held to quit")
+            NSApp.terminate(nil)
         case .holding(let elapsed, let progress):
             let visible: Double? = elapsed >= 0.25 ? progress : nil
             if holdProgress != visible { holdProgress = visible }
@@ -186,6 +214,12 @@ final class StudyController: ObservableObject {
     }
 }
 
+/// Takes the very first click, so End works with a single click even though
+/// the strip never becomes the active window.
+private final class FirstClickHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
 /// A panel that never takes keyboard focus: the strip and the Dock cover are
 /// only ever there to sit on top of things.
 private final class CoveringPanel: NSPanel {
@@ -196,9 +230,10 @@ private final class CoveringPanel: NSPanel {
 
 // MARK: - What the strip shows
 
-/// Black, edge to edge. On the right: the low-battery warning when it's due,
-/// the time left when a timer's running, and the clock. On the left, only
-/// while you're holding to leave: what's about to happen, and how far along.
+/// Black, edge to edge. On the left: End, and — only while you're holding to
+/// quit — what's about to happen and how far along. On the right, set in a
+/// little from the corner: the low-battery warning when it's due, the time
+/// left when a timer's running, and the clock.
 ///
 /// Not private, so Tools/preview-panel.sh can draw it.
 struct StudyStripView: View {
@@ -208,12 +243,42 @@ struct StudyStripView: View {
     let screen: NSRect
 
     var body: some View {
+        let height = notch.height.rounded()
+        let open = study.stripOpen
+        // Where it starts from: the music notch's own bar — the notch and a
+        // square either side — so it looks like that bar stretching out.
+        let barWidth = notch.width + height * 2
+        let barX = notch.midX - screen.minX - barWidth / 2
+
+        return ZStack(alignment: .topLeading) {
+            UnevenRoundedRectangle(bottomLeadingRadius: open ? 0 : 11,
+                                   bottomTrailingRadius: open ? 0 : 11,
+                                   style: .continuous)
+                .fill(Color.black)
+                .frame(width: open ? screen.width : barWidth, height: height)
+                .offset(x: open ? 0 : barX)
+                .animation(StudyController.stretch, value: open)
+
+            // Arrives once the black has nearly reached the edges, and leaves
+            // first on the way back.
+            contents
+                .opacity(open ? 1 : 0)
+                .animation(open ? .easeOut(duration: 0.25).delay(0.25) : .easeIn(duration: 0.1), value: open)
+                .allowsHitTesting(open)
+        }
+        .frame(width: screen.width, height: height, alignment: .topLeading)
+    }
+
+    private var contents: some View {
         // Once a second: the clock and the countdown. A few words in a small
         // window — this costs next to nothing.
         TimelineView(.periodic(from: .now, by: 1)) { context in
             HStack(spacing: 0) {
-                holdHint
-                    .frame(width: max(0, notch.minX - screen.minX - 24), alignment: .leading)
+                HStack(spacing: 14) {
+                    endButton
+                    holdHint
+                }
+                .frame(width: max(0, notch.minX - screen.minX - 24), alignment: .leading)
                 Spacer(minLength: 0)
                 HStack(spacing: 12) {
                     batteryWarning
@@ -222,18 +287,42 @@ struct StudyStripView: View {
                         .font(.system(size: 13, weight: .semibold).monospacedDigit())
                         .foregroundStyle(.white)
                 }
+                // In from the corner a little, clear of the screen's rounded
+                // edge.
+                .padding(.trailing, 26)
             }
             .padding(.horizontal, 16)
+            .onPreferenceChange(EndButtonFrameKey.self) { study.endButtonFrame = $0 }
         }
         .frame(width: screen.width, height: notch.height.rounded())
-        .background(Color.black)
+    }
+
+    /// Ends Study Mode and brings the menu bar back; NotchTunes keeps
+    /// running.
+    private var endButton: some View {
+        Button { study.end() } label: {
+            Text("End")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.9))
+                .padding(.horizontal, 11)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(Color.white.opacity(0.16)))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .help("End Study Mode")
+        .background(
+            GeometryReader { g in
+                Color.clear.preference(key: EndButtonFrameKey.self, value: g.frame(in: .global))
+            }
+        )
     }
 
     @ViewBuilder
     private var holdHint: some View {
         if let progress = study.holdProgress {
             HStack(spacing: 10) {
-                Text("Keep holding to end Study Mode")
+                Text("Keep holding to quit NotchTunes")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.85))
                 ZStack(alignment: .leading) {
@@ -407,5 +496,14 @@ enum DockSuppressor {
             }
         }
         if waiting { work() } else { DispatchQueue.global(qos: .userInitiated).async(execute: work) }
+    }
+}
+
+/// Where the End button was laid out, so a press on it isn't taken for a hold.
+private struct EndButtonFrameKey: PreferenceKey {
+    static let defaultValue: CGRect = .zero
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+        let next = nextValue()
+        if !next.isEmpty { value = next }
     }
 }
