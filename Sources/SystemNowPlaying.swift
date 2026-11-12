@@ -173,6 +173,32 @@ final class SystemNowPlaying {
                      repeatMode: "off")
     }
 
+    /// The cover macOS's Now Playing has for whatever is playing, if that's
+    /// this song in this app — used when Music won't hand a cover over itself.
+    func artwork(forTitle title: String, bundleID: String) -> NSImage? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let report, report.bundleID == bundleID, Self.sameSong(report.title, title) else { return nil }
+        return artwork
+    }
+
+    /// Whether two titles are the same song. The two places a title comes
+    /// from can word it a little differently — one adds "(feat. …)", say — so
+    /// one starting with the other counts, as long as it isn't just a word or
+    /// two in common.
+    static func sameSong(_ a: String, _ b: String) -> Bool {
+        let x = a.lowercased().trimmingCharacters(in: .whitespaces)
+        let y = b.lowercased().trimmingCharacters(in: .whitespaces)
+        guard !x.isEmpty, !y.isEmpty else { return false }
+        if x == y { return true }
+        let (short, long) = x.count <= y.count ? (x, y) : (y, x)
+        guard short.count >= 4, long.hasPrefix(short) else { return false }
+        // The longer one must carry on with something like " (feat." or
+        // " - Live", not just more letters of a different word.
+        let next = long[long.index(long.startIndex, offsetBy: short.count)]
+        return next == " " || next == "(" || next == "-" || next == "["
+    }
+
     // MARK: Commands
 
     /// Sends one command: "toggle", "next", "previous", or "seek:<seconds>".

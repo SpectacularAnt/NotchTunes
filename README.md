@@ -341,8 +341,12 @@ Three things made the difference:
    the panel is open, for the scrubber, and every two seconds while it's closed,
    as a safety net. A full read every 15 seconds catches anything else.
 
-Artwork is fetched only when the song changes, and a failed fetch is never
-cached (that once left the cover blank for a whole song).
+Artwork is fetched once per song, and a failed fetch is never cached (that once
+left the cover blank for a whole song). If Music won't hand a cover over — it
+only gives out artwork it has stored for a track, which a song streamed from
+Apple Music may not have — NotchTunes uses the one macOS's own Now Playing has
+for the same song, which the Podcasts helper is already receiving.
+`Tools/test-nowplaying.sh` tests how the two are matched by title.
 
 Setting up the audio listener happens off the main thread: macOS can hold that
 call for as long as its permission prompt sits unanswered, and on the main

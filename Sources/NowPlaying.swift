@@ -433,7 +433,11 @@ final class NowPlayingReader {
                      isPlaying: lines[0].caseInsensitiveCompare("playing") == .orderedSame,
                      source: previous.source, position: position, duration: previous.duration,
                      volume: Double(lines[2]) ?? previous.volume, trackID: previous.trackID,
-                     artwork: previous.artwork, repeatMode: Self.repeatMode(lines[3]))
+                     // A song still without a cover keeps being tried: a cover
+                     // that wasn't ready the instant the song began used to
+                     // wait for the next full read, up to 15 seconds away.
+                     artwork: previous.artwork ?? artwork(for: previous, from: source),
+                     repeatMode: Self.repeatMode(lines[3]))
     }
 
     /// Music says "off", "one" or "all"; Spotify says "true" or "false".
@@ -445,24 +449,39 @@ final class NowPlayingReader {
         }
     }
 
-    /// Artwork is only fetched when the song changes. A *failure* is not cached:
+    /// Artwork is fetched once per song and kept. A *failure* is not cached:
     /// when a track has just changed, the music app often hasn't loaded the cover
     /// yet, and caching that empty answer would leave the square blank for the
     /// whole song.
+    ///
+    /// Two places to look. First the music app itself. Then, if that comes up
+    /// empty, the cover macOS's own Now Playing has for the same song — which
+    /// it does have for songs Music won't hand over through its scripting:
+    /// "The Night We Met" by Marianne Beaulieu was one, most likely because
+    /// it's streamed from Apple Music rather than saved in the library, and
+    /// Music only gives out artwork it has stored for a track. That second
+    /// look asks no app anything (the Now Playing helper is already listening),
+    /// so it's tried every time, even after the music app has been given up on.
     private func artwork(for track: Track, from source: Source) -> NSImage? {
         let id = track.identity
         if let cached = artworkCache[id] { return cached }
-        guard (artworkFailures[id] ?? 0) < NowPlayingReader.artworkAttemptLimit else { return nil }
 
         var image: NSImage?
-        if let script = source.artworkDataScript,
-           let data = run(script)?.data, !data.isEmpty {
-            image = NSImage(data: data)
-        } else if let script = source.artworkURLScript,
-                  let text = run(script)?.stringValue,
-                  let url = URL(string: text),
-                  let data = try? Data(contentsOf: url) {
-            image = NSImage(data: data)
+        if (artworkFailures[id] ?? 0) < NowPlayingReader.artworkAttemptLimit {
+            if let script = source.artworkDataScript,
+               let data = run(script)?.data, !data.isEmpty {
+                image = NSImage(data: data)
+            } else if let script = source.artworkURLScript,
+                      let text = run(script)?.stringValue,
+                      let url = URL(string: text),
+                      let data = try? Data(contentsOf: url) {
+                image = NSImage(data: data)
+            }
+            if image == nil { artworkFailures[id, default: 0] += 1 }
+        }
+        if image == nil {
+            image = SystemNowPlaying.shared.artwork(forTitle: track.title, bundleID: source.bundleID)
+            if image != nil { logLine("artwork for \(track.title): from macOS's Now Playing") }
         }
 
         if let image {
@@ -473,8 +492,6 @@ final class NowPlayingReader {
                 artworkCache.removeAll()
                 artworkCache[id] = image
             }
-        } else {
-            artworkFailures[id, default: 0] += 1
         }
         return image
     }
