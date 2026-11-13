@@ -12,6 +12,7 @@ final class Settings: ObservableObject {
         static let holdToQuitSeconds = "holdToQuitSeconds"
         static let barsFollowMusic = "barsFollowMusic"
         static let barBounce = "barBounce"
+        static let barLoudness = "barLoudness"
         static let allDesktops = "allDesktops"
         static let studyBlocksDock = "studyBlocksDock"
         static let studyBatteryThreshold = "studyBatteryThreshold"
@@ -78,6 +79,15 @@ final class Settings: ObservableObject {
         didSet { UserDefaults.standard.set(studyBatteryThreshold, forKey: Key.studyBatteryThreshold) }
     }
 
+    /// How much the song's loudness shapes the moving bars: 0 (beats only)
+    /// to 1 (loud parts tall, quiet parts low). The middle is the original.
+    @Published var barLoudness: Double {
+        didSet {
+            UserDefaults.standard.set(barLoudness, forKey: Key.barLoudness)
+            AudioLevels.shared.loudness = Float(barLoudness)
+        }
+    }
+
     private init() {
         let defaults = UserDefaults.standard
         defaults.register(defaults: [Key.hoverDelay: 0.0,
@@ -87,6 +97,7 @@ final class Settings: ObservableObject {
                                      Key.holdToQuitSeconds: 2.0,
                                      Key.barsFollowMusic: true,
                                      Key.barBounce: 0.5,
+                                     Key.barLoudness: 0.5,
                                      Key.allDesktops: false,
                                      Key.studyBlocksDock: false,
                                      Key.studyBatteryThreshold: 20.0])
@@ -100,7 +111,9 @@ final class Settings: ObservableObject {
         allDesktops = defaults.bool(forKey: Key.allDesktops)
         studyBlocksDock = defaults.bool(forKey: Key.studyBlocksDock)
         studyBatteryThreshold = defaults.double(forKey: Key.studyBatteryThreshold)
-        // didSet doesn't run during init, so hand the saved value over here.
+        barLoudness = defaults.double(forKey: Key.barLoudness)
+        // didSet doesn't run during init, so hand the saved values over here.
         AudioLevels.shared.bounce = Float(barBounce)
+        AudioLevels.shared.loudness = Float(barLoudness)
     }
 }

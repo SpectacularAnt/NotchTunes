@@ -100,6 +100,7 @@ while it's open). Changes apply straight away and are remembered.
 | How long to hold | 2 seconds | Anywhere from 1 to 5 seconds. |
 | Moving bars follow the music | On | The bars listen to the music and move with it. Off, they move on their own pattern. The line beneath says whether it can hear anything right now. See below. |
 | How bouncy the bars are | Middle | From **Calm** to **Bouncy**: how big a beat has to be to send the bars to the top, how quickly they drop back, and — toward Calm — how much beats move them at all. The middle is how they were tuned. Only used while the bars follow the music. |
+| How much loudness shapes the bars | Middle | From **Beats** to **Loudness**. Toward Beats, the bars only jump on the beat, and a quiet verse looks like a loud chorus. Toward Loudness, the whole glyph is scaled by how loud this part of the song is against its loudest over the last half-minute or so: choruses stand tall, quiet verses stay low. The middle is how the bars were before the slider existed. |
 | Keep the Dock away in Study Mode | Off | The Dock won't appear while Study Mode is on. See Study Mode. |
 | Show the battery in Study Mode | 20% | The battery appears in the strip once it's at or below this level. All the way right shows it always. |
 

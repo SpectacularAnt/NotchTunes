@@ -45,9 +45,13 @@ final class BandAnalyser {
     /// well, but didn't look like Apple's.)
     ///
     /// `liveliness` scales how much the jumps move the bars: 1 normally, less
-    /// toward the calm end of the bounce slider.
+    /// toward the calm end of the bounce slider. `levelWeight` and
+    /// `loudnessPull` come from the loudness slider — see `loudnessWeight`.
+    /// `songLoudness` is how loud this moment is against the song's loudest
+    /// lately, 0...1.
     static func islandBars(levels: [Float], jumps: [Float], flicker: [Float]? = nil,
-                           liveliness: Float = 1) -> [Float] {
+                           liveliness: Float = 1, levelWeight: Float = 1,
+                           loudnessPull: Float = 0, songLoudness: Float = 1) -> [Float] {
         guard levels.count == bandCount, jumps.count == bandCount else { return levels }
         let flicker = flicker ?? [Float](repeating: 0, count: bandCount)
         let beat = jumps.max() ?? 0
@@ -57,17 +61,46 @@ final class BandAnalyser {
             // before flicker existed, so hits and the bounce slider behave
             // the same — or the quiet-passage floor of loudness and flicker,
             // which only shows when nothing is jumping.
-            let hits = 0.2 * levels[range] + liveliness * (0.55 * jumps[range] + 0.35 * beat)
-            let floor = 0.3 * levels[range] + liveliness * 0.4 * flicker[range]
-            let height = max(hits, floor)
+            let hits = levelWeight * 0.2 * levels[range] + liveliness * (0.55 * jumps[range] + 0.35 * beat)
+            let floor = levelWeight * 0.3 * levels[range] + liveliness * 0.4 * flicker[range]
+            // Toward Loudness on the slider, the whole glyph is scaled by how
+            // loud this part of the song is: choruses stand tall, quiet
+            // verses stay low.
+            let scale = (1 - loudnessPull) + loudnessPull * songLoudness
+            let height = max(hits, floor) * scale
             return islandShape[bar] * min(1, height)
         }
     }
 
     /// The bars as they should be drawn now.
     var islandBars: [Float] {
-        Self.islandBars(levels: levels, jumps: jumps, flicker: flicker, liveliness: liveliness)
+        let w = max(0, min(1, loudnessWeight))
+        return Self.islandBars(levels: levels, jumps: jumps, flicker: flicker, liveliness: liveliness,
+                               // Beats half: loudness counts for less, down to
+                               // nothing — loud and quiet parts look alike.
+                               levelWeight: w < 0.5 ? 2 * w : 1,
+                               // Loudness half: the glyph is scaled by how loud
+                               // this part of the song is, up to fully.
+                               loudnessPull: w > 0.5 ? 2 * (w - 0.5) : 0,
+                               songLoudness: songLoudness)
     }
+
+    /// How much the song's loudness shapes the bars, 0 (beats only) to 1
+    /// (loud parts tall, quiet parts low) — the slider in Settings. 0.5 is
+    /// the middle, and how the bars behaved before it existed.
+    var loudnessWeight: Float = 0.5
+
+    /// How loud this moment is against the song's loudest over the last half
+    /// minute or so, 0...1. Unlike `loudest`, which forgets within seconds so
+    /// that every passage fills the bars, this remembers long enough for a
+    /// quiet verse to be measured against the chorus before it.
+    private(set) var songLoudness: Float = 1
+    private var songLoudest: Float = -50
+    private var overall: Float = -60
+
+    /// How many decibels below the song's loudest counts as silent. A quiet
+    /// verse is typically 6–12 dB under the chorus.
+    static let loudnessRange: Float = 18
 
     /// Toward Calm, the beats move the bars less overall as well as needing
     /// to be bigger — 60% at the very calm end, full from the middle up.
@@ -194,6 +227,16 @@ final class BandAnalyser {
         // filled the bars.
         loudest = max(lifted.max() ?? -120, loudest - 0.04, -50)
 
+        // The song's loudness, for the loudness slider: the loudest range
+        // right now, smoothed over about a third of a second, against the
+        // loudest it's been lately, which sinks back by half a decibel a
+        // second — about thirty seconds to forget a 15 dB chorus.
+        let seconds = Float(samples.count) / sampleRate
+        let now = max(lifted.max() ?? -120, -60)
+        overall += (now - overall) * (1 - exp(-seconds / 0.3))
+        songLoudest = max(overall, songLoudest - 0.5 * seconds, -50)
+        songLoudness = max(0, min(1, 1 - (songLoudest - overall) / BandAnalyser.loudnessRange))
+
         for band in 0..<BandAnalyser.bandCount {
             // Within 24 dB of the loudest counts; anything quieter is empty.
             // A narrow window on purpose: with a wider one, every band of a
@@ -210,7 +253,6 @@ final class BandAnalyser {
         // Jumps: each band against its own last second or so. Measured by
         // time rather than per update, since updates don't come at a fixed
         // rate.
-        let seconds = Float(samples.count) / sampleRate
         if !heardAnything {
             // Start from what's playing, not from silence — or everything
             // would look like a jump for the first few seconds.

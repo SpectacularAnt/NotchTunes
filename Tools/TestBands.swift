@@ -89,9 +89,11 @@ check("bass in the middle, treble at the edges",
       && [0, 5].contains(BandAnalyser.islandSource.firstIndex(of: 5)!))
 
 // Reacting over time: what you actually see.
-func run(seconds: Float, bounce: Float = 0.5, _ sample: (Float) -> Float, watch: (Float, [Float]) -> Void) {
+func run(seconds: Float, bounce: Float = 0.5, loudness: Float = 0.5,
+         _ sample: (Float) -> Float, watch: (Float, [Float]) -> Void) {
     let analyser = BandAnalyser()
     analyser.bounce = bounce
+    analyser.loudnessWeight = loudness
     var t: Float = 0
     for _ in 0..<Int(seconds * rate / 512) {
         var piece = [Float](repeating: 0, count: 512)
@@ -164,6 +166,31 @@ let middleRange = (middles.max() ?? 0) - (middles.min() ?? 0)
 check("a dense passage with no beat keeps the glyph up", middleAverage > 0.25,
       String(format: "middle bar averages %.2f (a dot is about 0.17)", middleAverage))
 check("and moving", middleRange > 0.1, String(format: "middle bar ranges over %.2f", middleRange))
+
+// The loudness slider: a loud chorus, then the same music 12 dB quieter, like
+// a verse. Compares how tall the bars get in each.
+func chorusThenVerse(_ t: Float) -> Float {
+    let gain: Float = t < 6 ? 1 : 0.25                     // 12 dB down after six seconds
+    let since = t.truncatingRemainder(dividingBy: 0.5)
+    let thump: Float = since < 0.08 ? 0.8 * (1 - since / 0.08) : 0
+    return gain * (0.2 * sin(2 * .pi * 220 * t) + 0.1 * sin(2 * .pi * 330 * t) + thump * sin(2 * .pi * 70 * t))
+}
+func verseAgainstChorus(loudness: Float) -> Float {
+    var chorus: Float = 0, verse: Float = 0
+    run(seconds: 12, loudness: loudness, chorusThenVerse) { t, bars in
+        let tallest = bars.max() ?? 0
+        if t > 2 && t < 6 { chorus = max(chorus, tallest) }
+        if t > 8 { verse = max(verse, tallest) }
+    }
+    return chorus > 0 ? verse / chorus : 0
+}
+let beatsOnly = verseAgainstChorus(loudness: 0)
+let balanced = verseAgainstChorus(loudness: 0.5)
+let loudnessLed = verseAgainstChorus(loudness: 1)
+check("Beats: a quiet verse looks like the chorus", beatsOnly > 0.85, String(format: "verse at %.0f%% of chorus", beatsOnly * 100))
+check("middle: as before, much the same", balanced > 0.85, String(format: "verse at %.0f%% of chorus", balanced * 100))
+check("Loudness: a quiet verse stays well below the chorus", loudnessLed < 0.6,
+      String(format: "verse at %.0f%% of chorus", loudnessLed * 100))
 
 print(failures == 0 ? "\nall passed" : "\n\(failures) failed")
 exit(failures == 0 ? 0 : 1)

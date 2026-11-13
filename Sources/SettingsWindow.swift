@@ -9,7 +9,7 @@ final class SettingsWindowController {
     func show() {
         if window == nil {
             let panel = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 380, height: 700),
+                contentRect: NSRect(x: 0, y: 0, width: 380, height: 760),
                 styleMask: [.titled, .closable],
                 backing: .buffered,
                 defer: false)
@@ -110,6 +110,21 @@ struct SettingsView: View {
                 .opacity(settings.barsFollowMusic ? 1 : 0.4)
                 .disabled(!settings.barsFollowMusic)
 
+            row(title: "How much loudness shapes the bars",
+                detail: !settings.barsFollowMusic
+                    ? "Only used while the bars follow the music"
+                    : (abs(settings.barLoudness - 0.5) < 0.05
+                        ? "Balanced between the beat and how loud the music is."
+                        : (settings.barLoudness < 0.5
+                            ? "Mostly the beat: loud and quiet parts look alike."
+                            : "Loud parts stand tall; quiet parts stay low.")),
+                value: $settings.barLoudness,
+                range: 0...1,
+                low: "Beats",
+                high: "Loudness")
+                .opacity(settings.barsFollowMusic ? 1 : 0.4)
+                .disabled(!settings.barsFollowMusic)
+
             Divider()
 
             VStack(alignment: .leading, spacing: 5) {
@@ -118,6 +133,7 @@ struct SettingsView: View {
                 Text("It won't appear until Study Mode ends. It restarts for a moment as Study Mode starts and ends.")
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             row(title: "Show the battery in Study Mode",
@@ -136,7 +152,7 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
         }
         .padding(22)
-        .frame(width: 380, height: 700)
+        .frame(width: 380, height: 760)
     }
 
     /// One line on whether the bars can actually hear anything.

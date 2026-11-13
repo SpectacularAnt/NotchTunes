@@ -60,6 +60,13 @@ final class AudioLevels {
     }
 
     private var bounceValue: Float = 0.5
+    private var loudnessValue: Float = 0.5
+
+    /// The loudness slider, passed on to the analyser the same way.
+    var loudness: Float {
+        get { os_unfair_lock_lock(&lock); defer { os_unfair_lock_unlock(&lock) }; return loudnessValue }
+        set { os_unfair_lock_lock(&lock); loudnessValue = newValue; os_unfair_lock_unlock(&lock) }
+    }
 
     /// The Settings slider, passed on to the analyser on the audio thread.
     var bounce: Float {
@@ -367,6 +374,7 @@ private final class ProcessTap {
                 guard !mono.isEmpty else { return }
                 let peak = mono.reduce(0) { max($0, abs($1)) }
                 analyser.bounce = AudioLevels.shared.bounce
+                analyser.loudnessWeight = AudioLevels.shared.loudness
                 analyser.add(mono, sampleRate: rate)
                 onLevels(analyser.islandBars, peak)
             })
