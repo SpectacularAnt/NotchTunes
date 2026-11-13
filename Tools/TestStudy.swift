@@ -75,12 +75,23 @@ func assertionsList() -> String {
     process.waitUntilExit()
     return String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
 }
-StayAwake.start()
+StayAwake.set("Study Mode", on: true)
 check("Study Mode asks macOS to keep the display awake", StayAwake.isHeld)
 let during = assertionsList()
-check("macOS lists it", during.contains("NotchTunes Study Mode") && during.contains("PreventUserIdleDisplaySleep"))
-StayAwake.stop()
-check("and lets go when Study Mode ends", !StayAwake.isHeld && !assertionsList().contains("NotchTunes Study Mode"))
+check("macOS lists it", during.contains("NotchTunes is keeping the display awake")
+      && during.contains("PreventUserIdleDisplaySleep"))
+
+StayAwake.set("Visualizer", on: true)
+StayAwake.set("Study Mode", on: false)
+check("ending Study Mode with the visualizer still playing keeps it awake", StayAwake.isHeld
+      && assertionsList().contains("NotchTunes is keeping the display awake"))
+
+StayAwake.set("Visualizer", on: false)
+check("and it lets go once nothing needs it", !StayAwake.isHeld
+      && !assertionsList().contains("NotchTunes is keeping the display awake"))
+
+StayAwake.set("Visualizer", on: false)
+check("letting go twice is harmless", !StayAwake.isHeld)
 
 print(failures == 0 ? "\nall passed" : "\n\(failures) failed")
 exit(failures == 0 ? 0 : 1)

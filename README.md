@@ -548,6 +548,12 @@ When the song changes, everything cross-fades: the old cover dissolves into the
 new one, and the colours drift from one song's to the next over about a second.
 Choosing the other style while the window is open fades between the two.
 
+While the visualizer is open **and music is playing**, the Mac stays awake —
+no dimming, sleep, screensaver or idle lock — using the same "keep the display
+awake" request as Study Mode. Pause the music, or close the window, and it can
+sleep again; a visualizer left up overnight with nothing playing won't keep the
+screen on.
+
 It opens as a large window. Press **F** (or the green button) for full screen,
 and **Escape** to leave full screen, or to close the window when it isn't. It
 reads from the same place as the notch, so it adds no extra work for Music.

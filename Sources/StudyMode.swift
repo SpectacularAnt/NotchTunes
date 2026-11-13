@@ -56,7 +56,7 @@ final class StudyController: ObservableObject {
         guard let geometry = NotchGeometry.current() else { return }
 
         isActive = true
-        StayAwake.start()
+        StayAwake.set("Study Mode", on: true)
         readBattery()
         showStrip(on: geometry)
         updateDock()
@@ -75,7 +75,7 @@ final class StudyController: ObservableObject {
     func end() {
         guard isActive else { return }
         isActive = false
-        StayAwake.stop()
+        StayAwake.set("Study Mode", on: false)
         endsAt = nil
         holdProgress = nil
         ticker?.invalidate()
@@ -565,34 +565,45 @@ private struct EndButtonFrameKey: PreferenceKey {
 // MARK: - Staying awake
 
 /// Keeps the Mac from sleeping, dimming, starting the screensaver or locking
-/// from being left idle while Study Mode is on.
+/// from being left idle — while Study Mode is on, and while the visualizer is
+/// playing.
 ///
 /// This is macOS's own "keep the display awake" request — a power assertion,
 /// the same thing video players and `caffeinate -d` use. It needs no
-/// permission and changes no setting: it's simply held while Study Mode is on
-/// and let go when it ends. If NotchTunes quits or crashes, macOS drops it on
-/// its own. Closing the lid, or locking on purpose, still works as usual.
+/// permission and changes no setting. Each part of NotchTunes that wants it
+/// says so by name, and the one request is held for as long as any of them
+/// still wants it — so ending Study Mode doesn't let the screen sleep under a
+/// visualizer that's still playing, or the other way round. If NotchTunes
+/// quits or crashes, macOS drops it on its own. Closing the lid, or locking on
+/// purpose, still works as usual.
 enum StayAwake {
     private static var assertion: IOPMAssertionID = 0
     private static var held = false
+    private static var wanting: Set<String> = []
 
-    static func start() {
-        guard !held else { return }
-        let result = IOPMAssertionCreateWithName(
-            kIOPMAssertionTypePreventUserIdleDisplaySleep as CFString,
-            IOPMAssertionLevel(kIOPMAssertionLevelOn),
-            "NotchTunes Study Mode" as CFString,
-            &assertion)
-        held = result == kIOReturnSuccess
-        logLine(held ? "study mode: keeping the Mac awake" : "study mode: couldn't keep the Mac awake (\(result))")
-    }
-
-    static func stop() {
-        guard held else { return }
-        IOPMAssertionRelease(assertion)
-        held = false
-        logLine("study mode: Mac may sleep again")
+    /// `reason` is who's asking: "Study Mode", "Visualizer".
+    static func set(_ reason: String, on: Bool) {
+        let before = wanting
+        if on { wanting.insert(reason) } else { wanting.remove(reason) }
+        guard wanting != before else { return }
+        update()
     }
 
     static var isHeld: Bool { held }
+
+    private static func update() {
+        if !wanting.isEmpty && !held {
+            let result = IOPMAssertionCreateWithName(
+                kIOPMAssertionTypePreventUserIdleDisplaySleep as CFString,
+                IOPMAssertionLevel(kIOPMAssertionLevelOn),
+                "NotchTunes is keeping the display awake" as CFString,
+                &assertion)
+            held = result == kIOReturnSuccess
+            logLine(held ? "keeping the Mac awake for \(wanting.sorted())" : "couldn't keep the Mac awake (\(result))")
+        } else if wanting.isEmpty && held {
+            IOPMAssertionRelease(assertion)
+            held = false
+            logLine("the Mac may sleep again")
+        }
+    }
 }

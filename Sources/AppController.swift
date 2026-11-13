@@ -198,6 +198,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuItemValidation
 
         model.apply(track)
 
+        // Keep the Mac awake while the visualizer is open and playing — but
+        // not when it's left up with the music paused.
+        StayAwake.set("Visualizer", on: visualizer.isOpen && (track?.isPlaying ?? false))
+
         // Listen to the music while it plays, so the bars can follow it.
         AudioFollower.shared.update(app: track?.source,
                                     isPlaying: track?.isPlaying ?? false,
@@ -253,6 +257,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuItemValidation
         guard let raw = sender.representedObject as? String,
               let style = VisualizerStyle(rawValue: raw) else { return }
         visualizer.show(style)
+        StayAwake.set("Visualizer", on: model.track?.isPlaying ?? false)
     }
 
     /// Ticks the style that's showing, while the visualizer is open.

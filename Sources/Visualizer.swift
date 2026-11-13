@@ -38,6 +38,9 @@ final class VisualizerWindowController: NSObject, NSWindowDelegate {
 
     var currentStyle: VisualizerStyle? { window?.isVisible == true ? state.style : nil }
 
+    /// Whether the window is open at all.
+    var isOpen: Bool { window != nil }
+
     func show(_ style: VisualizerStyle) {
         // The style changes with an animation if the window is already open,
         // so switching is a fade rather than a jump.
@@ -77,6 +80,8 @@ final class VisualizerWindowController: NSObject, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
+        // Closed: no reason to keep the screen awake for it any more.
+        StayAwake.set("Visualizer", on: false)
         // Dropped rather than kept hidden, so the moving bars aren't drawing
         // sixty times a second into a window nobody can see.
         window?.contentView = nil
