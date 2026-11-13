@@ -31,24 +31,43 @@ final class BandAnalyser {
     ///    moves the whole glyph together;
     ///  - and the result is scaled by the glyph's silhouette.
     ///
+    ///  - and a floor beneath all that, from how loud each range is and its
+    ///    *flicker* — the small quick rises and falls every range has from
+    ///    moment to moment — so a dense passage with nothing jumping out
+    ///    still has height and movement. The bar is whichever is higher, the
+    ///    beat's response or this floor, so the floor never blunts a hit.
+    ///
     /// (Following loudness alone looked frozen: in a full song every range is
-    /// loud nearly all the time, so every bar sat at its maximum. And bass on
-    /// the left with treble on the right showed pitch well, but didn't look
-    /// like Apple's.)
+    /// loud nearly all the time, so every bar sat at its maximum. Following
+    /// jumps alone went flat: in a dense, even passage — a wall of guitars, a
+    /// held vocal over pads — nothing jumps, and the glyph dropped to dots
+    /// mid-song. And bass on the left with treble on the right showed pitch
+    /// well, but didn't look like Apple's.)
+    ///
     /// `liveliness` scales how much the jumps move the bars: 1 normally, less
     /// toward the calm end of the bounce slider.
-    static func islandBars(levels: [Float], jumps: [Float], liveliness: Float = 1) -> [Float] {
+    static func islandBars(levels: [Float], jumps: [Float], flicker: [Float]? = nil,
+                           liveliness: Float = 1) -> [Float] {
         guard levels.count == bandCount, jumps.count == bandCount else { return levels }
+        let flicker = flicker ?? [Float](repeating: 0, count: bandCount)
         let beat = jumps.max() ?? 0
         return (0..<bandCount).map { bar in
             let range = islandSource[bar]
-            let height = 0.2 * levels[range] + liveliness * (0.55 * jumps[range] + 0.35 * beat)
+            // Whichever is higher: the beat's response — exactly as it was
+            // before flicker existed, so hits and the bounce slider behave
+            // the same — or the quiet-passage floor of loudness and flicker,
+            // which only shows when nothing is jumping.
+            let hits = 0.2 * levels[range] + liveliness * (0.55 * jumps[range] + 0.35 * beat)
+            let floor = 0.3 * levels[range] + liveliness * 0.4 * flicker[range]
+            let height = max(hits, floor)
             return islandShape[bar] * min(1, height)
         }
     }
 
     /// The bars as they should be drawn now.
-    var islandBars: [Float] { Self.islandBars(levels: levels, jumps: jumps, liveliness: liveliness) }
+    var islandBars: [Float] {
+        Self.islandBars(levels: levels, jumps: jumps, flicker: flicker, liveliness: liveliness)
+    }
 
     /// Toward Calm, the beats move the bars less overall as well as needing
     /// to be bigger — 60% at the very calm end, full from the middle up.
@@ -98,6 +117,17 @@ final class BandAnalyser {
     /// near 1 on a hit, sinking back to 0 while the sound holds steady.
     private(set) var jumps: [Float]
 
+    /// How much each band is wavering from moment to moment, 0...1: its
+    /// level against its own last tenth of a second or so, either way.
+    private(set) var flicker: [Float]
+
+    /// Each band's level over roughly the last tenth of a second.
+    private var recentLevel: [Float]
+
+    /// Wavering by this many decibels counts as full flicker. Small on
+    /// purpose: it's the fine texture, not the hits.
+    static let fullFlicker: Float = 4
+
     /// Each band's level over the last second or so, in the same lifted
     /// decibels — what a jump is measured against.
     private var usual: [Float]
@@ -129,6 +159,8 @@ final class BandAnalyser {
         vDSP_hann_window(&window, vDSP_Length(size), Int32(vDSP_HANN_NORM))
         levels = [Float](repeating: 0, count: BandAnalyser.bandCount)
         jumps = [Float](repeating: 0, count: BandAnalyser.bandCount)
+        flicker = [Float](repeating: 0, count: BandAnalyser.bandCount)
+        recentLevel = [Float](repeating: -60, count: BandAnalyser.bandCount)
         usual = [Float](repeating: -50, count: BandAnalyser.bandCount)
     }
 
@@ -200,6 +232,16 @@ final class BandAnalyser {
             // beat, about a tenth of a second.
             let speed: Float = target > jumps[band] ? 0.8 : 1 - exp(-seconds / fallTime)
             jumps[band] += (target - jumps[band]) * speed
+
+            // Flicker: how far this band is from where it was a moment ago,
+            // up or down. Only while there's sound to speak of — silence's
+            // own noise shouldn't twitch the bars.
+            let wobble = abs(now - recentLevel[band])
+            recentLevel[band] += (now - recentLevel[band]) * (1 - exp(-seconds / 0.12))
+            let audible = levels[band] > 0.05
+            let flick = audible ? max(0, min(1, wobble / BandAnalyser.fullFlicker)) : 0
+            let flickSpeed: Float = flick > flicker[band] ? 0.5 : 1 - exp(-seconds / 0.12)
+            flicker[band] += (flick - flicker[band]) * flickSpeed
         }
     }
 

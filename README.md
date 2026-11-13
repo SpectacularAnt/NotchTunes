@@ -495,9 +495,16 @@ stands well above what's around it for an instant, so the bars leap on hits and
 sink between them; a sustained sound settles to a low base. The biggest jump
 anywhere lifts every bar a little, so a kick drum moves the whole glyph.
 
-Two earlier versions, for the record: bass-left/treble-right showed pitch well
-but didn't look like Apple's; and following loudness alone looked frozen,
-because in a full song every range is loud nearly all the time.
+Underneath, there's a floor: a little height from how loud each range is, and
+its **flicker** — the small quick rises and falls every range has from moment
+to moment. Each bar is whichever is higher, the beat's response or that floor,
+so a dense passage with nothing jumping out (a wall of guitars, a held vocal
+over pads) keeps the glyph up and moving, without blunting the hits.
+
+Earlier versions, for the record: bass-left/treble-right showed pitch well but
+didn't look like Apple's; following loudness alone looked frozen, because in a
+full song every range is loud nearly all the time; and following jumps alone
+went flat mid-song in exactly those dense, even passages.
 
 How: macOS 14.2 added **process taps**, which let one app hear another app's
 sound as it plays, without changing what you hear. NotchTunes taps Music (or

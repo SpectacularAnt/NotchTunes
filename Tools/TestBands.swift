@@ -68,7 +68,8 @@ let islandSilent = BandAnalyser.islandBars(levels: flat, jumps: flat)
 check("silence: a flat glyph", islandSilent.allSatisfy { $0 == 0 }, fmt(islandSilent))
 
 let steadyLoud = BandAnalyser.islandBars(levels: full, jumps: flat)
-check("loud but steady: only a low base", steadyLoud.allSatisfy { $0 <= 0.2 }, fmt(steadyLoud))
+check("loud but steady: a modest base, well short of a hit",
+      steadyLoud.allSatisfy { $0 <= 0.35 } && steadyLoud[2] >= 0.25, fmt(steadyLoud))
 
 let hit = BandAnalyser.islandBars(levels: full, jumps: full)
 check("a hit everywhere: tallest in the middle",
@@ -103,7 +104,8 @@ func run(seconds: Float, bounce: Float = 0.5, _ sample: (Float) -> Float, watch:
 // A steady tone for three seconds: the bars should settle down, not stay up.
 var settled: [Float] = []
 run(seconds: 3, tone(70)) { t, bars in if t > 2.9 && settled.isEmpty { settled = bars } }
-check("a steady sound lets the bars settle low", settled[2] < 0.35, fmt(settled))
+check("a steady sound settles well below a beat", settled[2] < 0.5, fmt(settled))
+check("but doesn't go flat", settled[2] > 0.25, fmt(settled))
 
 // A drum: a quiet hum with a loud bass thump twice a second.
 func drum(_ t: Float) -> Float {
@@ -139,6 +141,29 @@ check("Calm leaps least, Bouncy most", calm < middle && middle < bouncy,
       String(format: "calm %.2f, middle %.2f, bouncy %.2f", calm, middle, bouncy))
 check("Bouncy takes a modest beat to the top", bouncy > 0.85, String(format: "%.2f", bouncy))
 check("Calm keeps it well short of the top", calm < 0.7, String(format: "%.2f", calm))
+
+// The bug this guards against: a dense, even passage — a wall of guitars, a
+// held vocal over pads — with nothing jumping out used to drop the glyph to
+// dots mid-song.
+var seed: UInt64 = 42
+func noise() -> Float {
+    seed = seed &* 6364136223846793005 &+ 1442695040888963407
+    return Float(Int64(bitPattern: seed >> 11) % 2_000_000) / 1_000_000 - 1
+}
+var p0: Float = 0, p1: Float = 0, p2: Float = 0
+func wall(_ t: Float) -> Float {
+    let w = noise()
+    p0 = 0.99765 * p0 + w * 0.0990460; p1 = 0.96300 * p1 + w * 0.2965164; p2 = 0.57000 * p2 + w * 1.0526913
+    return (p0 + p1 + p2 + w * 0.1848) * 0.05
+        + 0.2 * sin(2 * .pi * 110 * t) + 0.15 * sin(2 * .pi * 165 * t) + 0.1 * sin(2 * .pi * 330 * t)
+}
+var middles: [Float] = []
+run(seconds: 6, wall) { t, bars in if t > 3 { middles.append(bars[2]) } }
+let middleAverage = middles.reduce(0, +) / Float(middles.count)
+let middleRange = (middles.max() ?? 0) - (middles.min() ?? 0)
+check("a dense passage with no beat keeps the glyph up", middleAverage > 0.25,
+      String(format: "middle bar averages %.2f (a dot is about 0.17)", middleAverage))
+check("and moving", middleRange > 0.1, String(format: "middle bar ranges over %.2f", middleRange))
 
 print(failures == 0 ? "\nall passed" : "\n\(failures) failed")
 exit(failures == 0 ? 0 : 1)
