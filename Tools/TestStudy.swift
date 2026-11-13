@@ -63,5 +63,24 @@ check("silence for over 20 seconds after hearing music: the pattern (permission 
 check("hearing the music: no pattern", !pattern(true, .following, true, 0))
 check("starting up, not heard anything yet: no pattern", !pattern(true, .idle, false, 0))
 
+// Staying awake: held for about a second, checked against macOS's own list of
+// power requests, then let go and checked again.
+func assertionsList() -> String {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
+    process.arguments = ["-g", "assertions"]
+    let pipe = Pipe()
+    process.standardOutput = pipe
+    try? process.run()
+    process.waitUntilExit()
+    return String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+}
+StayAwake.start()
+check("Study Mode asks macOS to keep the display awake", StayAwake.isHeld)
+let during = assertionsList()
+check("macOS lists it", during.contains("NotchTunes Study Mode") && during.contains("PreventUserIdleDisplaySleep"))
+StayAwake.stop()
+check("and lets go when Study Mode ends", !StayAwake.isHeld && !assertionsList().contains("NotchTunes Study Mode"))
+
 print(failures == 0 ? "\nall passed" : "\n\(failures) failed")
 exit(failures == 0 ? 0 : 1)

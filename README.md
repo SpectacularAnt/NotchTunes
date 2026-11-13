@@ -429,6 +429,11 @@ Mode**, then how long: **Until I End It**, or 25 minutes to 2 hours.
 - **Pressing and holding** the strip — or the open music panel — **quits
   NotchTunes**, Study Mode with it, exactly as hold-to-quit does elsewhere (and
   switched on and off by the same setting). Quitting puts the Dock back first.
+- **The Mac stays awake.** While Study Mode is on, the screen won't dim, sleep,
+  start the screensaver or lock from being left idle. It's macOS's own "keep
+  the display awake" request — what video players and `caffeinate -d` use —
+  held while Study Mode is on and let go when it ends (or by macOS itself if
+  NotchTunes quits). Closing the lid, or locking on purpose, still works.
 - **When a timer runs out**, a soft chime plays and the menu bar comes back.
 - **Keep the Dock away** (Settings, off by default): the Dock won't appear
   until Study Mode ends. macOS has no switch for another app to turn the Dock

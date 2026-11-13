@@ -1,5 +1,6 @@
 import AppKit
 import IOKit.ps
+import IOKit.pwr_mgt
 import SwiftUI
 
 /// Study Mode: as few distractions as a Mac allows.
@@ -55,6 +56,7 @@ final class StudyController: ObservableObject {
         guard let geometry = NotchGeometry.current() else { return }
 
         isActive = true
+        StayAwake.start()
         readBattery()
         showStrip(on: geometry)
         updateDock()
@@ -73,6 +75,7 @@ final class StudyController: ObservableObject {
     func end() {
         guard isActive else { return }
         isActive = false
+        StayAwake.stop()
         endsAt = nil
         holdProgress = nil
         ticker?.invalidate()
@@ -557,4 +560,39 @@ private struct EndButtonFrameKey: PreferenceKey {
         let next = nextValue()
         if !next.isEmpty { value = next }
     }
+}
+
+// MARK: - Staying awake
+
+/// Keeps the Mac from sleeping, dimming, starting the screensaver or locking
+/// from being left idle while Study Mode is on.
+///
+/// This is macOS's own "keep the display awake" request — a power assertion,
+/// the same thing video players and `caffeinate -d` use. It needs no
+/// permission and changes no setting: it's simply held while Study Mode is on
+/// and let go when it ends. If NotchTunes quits or crashes, macOS drops it on
+/// its own. Closing the lid, or locking on purpose, still works as usual.
+enum StayAwake {
+    private static var assertion: IOPMAssertionID = 0
+    private static var held = false
+
+    static func start() {
+        guard !held else { return }
+        let result = IOPMAssertionCreateWithName(
+            kIOPMAssertionTypePreventUserIdleDisplaySleep as CFString,
+            IOPMAssertionLevel(kIOPMAssertionLevelOn),
+            "NotchTunes Study Mode" as CFString,
+            &assertion)
+        held = result == kIOReturnSuccess
+        logLine(held ? "study mode: keeping the Mac awake" : "study mode: couldn't keep the Mac awake (\(result))")
+    }
+
+    static func stop() {
+        guard held else { return }
+        IOPMAssertionRelease(assertion)
+        held = false
+        logLine("study mode: Mac may sleep again")
+    }
+
+    static var isHeld: Bool { held }
 }
