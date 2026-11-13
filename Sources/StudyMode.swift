@@ -100,15 +100,66 @@ final class StudyController: ObservableObject {
         if tickCount % 30 == 0 { readBattery() }
         // The Dock setting can be changed mid-session.
         updateDock()
+        // A safety net for anything that moves the strip without saying so.
+        pinStrip()
     }
 
     // MARK: The strip
 
-    private func showStrip(on geometry: NotchGeometry) {
+    /// Where the strip belongs: across the very top of the notched screen.
+    static func stripFrame(for geometry: NotchGeometry) -> NSRect {
         let screen = geometry.screen
         let height = geometry.notch.height.rounded()
-        let frame = NSRect(x: screen.frame.minX, y: screen.frame.maxY - height,
-                           width: screen.frame.width, height: height)
+        return NSRect(x: screen.frame.minX, y: screen.frame.maxY - height,
+                      width: screen.frame.width, height: height)
+    }
+
+    /// Puts the strip back across the top of the screen if anything has moved
+    /// it.
+    ///
+    /// Something did: going full screen with Study Mode on, macOS moved the
+    /// strip about three-quarters of the way down the screen while it built
+    /// the full-screen app's own desktop, and nothing ever moved it back. So
+    /// it's checked whenever the desktop or the screens change, and once a
+    /// second in case anything else does.
+    private func pinStrip() {
+        guard let strip, let geometry = NotchGeometry.current() else { return }
+        let wanted = Self.stripFrame(for: geometry)
+        guard strip.frame != wanted else { return }
+        logLine("study mode: strip was at \(strip.frame), putting it back at \(wanted)")
+        if strip.frame.size != wanted.size {
+            // A different screen size: redraw for it, as well as moving.
+            strip.contentView = FirstClickHostingView(rootView: StudyStripView(
+                study: self, notch: geometry.notch, screen: geometry.screen.frame))
+        }
+        strip.setFrame(wanted, display: true)
+        strip.orderFrontRegardless()
+    }
+
+    /// Re-pins straight away, and again once a desktop-switching animation
+    /// has had time to finish, since macOS may move things during it.
+    @objc private func surroundingsChanged() {
+        pinStrip()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.pinStrip() }
+    }
+
+    private var watchingSurroundings = false
+
+    private func watchSurroundings() {
+        guard !watchingSurroundings else { return }
+        watchingSurroundings = true
+        let workspace = NSWorkspace.shared.notificationCenter
+        workspace.addObserver(self, selector: #selector(surroundingsChanged),
+                              name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(surroundingsChanged),
+                                               name: NSApplication.didChangeScreenParametersNotification,
+                                               object: nil)
+    }
+
+    private func showStrip(on geometry: NotchGeometry) {
+        let screen = geometry.screen
+        let frame = Self.stripFrame(for: geometry)
+        watchSurroundings()
 
         let panel = CoveringPanel(contentRect: frame,
                                   styleMask: [.borderless, .nonactivatingPanel],

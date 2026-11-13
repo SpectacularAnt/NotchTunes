@@ -41,5 +41,15 @@ for original in [usual, .init(autohide: false, delay: 0.5), .init(autohide: nil,
     check("saves and reads back \(original)", DockSuppressor.decode(DockSuppressor.encode(original)) == original)
 }
 
+// Where the strip belongs — what it's pinned back to if anything moves it.
+if let geometry = NotchGeometry.current() {
+    let strip = StudyController.stripFrame(for: geometry)
+    let screen = geometry.screen.frame
+    check("the strip runs the full width of the screen", strip.minX == screen.minX && strip.width == screen.width,
+          "\(strip)")
+    check("flush with the very top", strip.maxY == screen.maxY, "top \(strip.maxY) of \(screen.maxY)")
+    check("as tall as the notch", strip.height == geometry.notch.height.rounded(), "\(strip.height)pt")
+}
+
 print(failures == 0 ? "\nall passed" : "\n\(failures) failed")
 exit(failures == 0 ? 0 : 1)
