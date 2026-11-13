@@ -419,22 +419,35 @@ one still held from before the panel opened.
 
 An opt-in companion (Settings ▸ **Keep a cuy on the notch**): a tiny guinea pig
 that lives in its own small black bubble to the left of the notch's bar — the
-way the Dynamic Island shows a second bubble beside the main one. It's drawn
-like the notch's other glyphs: plain white shapes on black.
+way the Dynamic Island shows a second bubble beside the main one. It's drawn in
+the notch's flat, simple shapes, in a classic coat: cream with a ginger saddle
+and head patch, pink ears, nose and feet.
 
-- **Standby:** sits, breathes, blinks now and then, twitches an ear, sniffs.
-- **Asleep** from 11 PM to 7 AM: lies flat, eye closed, breathing slowly, with
-  little z's drifting up.
+- **Resting**, when nothing's going on, it rotates through calm things: sitting
+  and blinking, **loafing** with sleepy half-shut eyes, **grooming** its face
+  with a paw, **nibbling** a strand of hay, and the odd **yawn**.
+- **Asleep** from 11 PM to 7 AM: lying flat, eye closed, z's drifting up.
 - **Running** when the Mac's memory is busy — three-quarters used or more,
-  counted the way Activity Monitor's "Memory Used" is — scurrying in place,
-  faster the fuller memory gets. Busy memory wakes it even at night.
+  counted the way Activity Monitor's "Memory Used" is — faster the fuller
+  memory gets. Busy memory wakes it even at night.
+
+### Its room
+
+Rest the cursor on its bubble and the notch opens into the cuy's room instead
+of the music panel: a floor, a hidey-house, a food bowl and a little hay. In it:
+
+- by day it **wanders** — trots somewhere, rests a while, goes over to the bowl
+  to eat — and now and then **popcorns**, the happy jump real guinea pigs do;
+- at night it walks to its house and **sleeps** by the door;
+- with memory busy it does **zoomies**, lapping the room wall to wall;
+- **click** anywhere in the room and it popcorns.
 
 It keeps the notch up even with nothing playing (it lives there), steps aside
-while the panel is open, and comes back after. Each mood is a handful of
-frames drawn once and flipped a few times a second on a plain layer, so it
-costs next to nothing; it checks the hour and memory every five seconds, and
-only while it's switched on. `Tools/test-cuy.sh` tests its moods, and
-`./Tools/preview-panel.sh cuy.png cuy` draws every frame.
+while a panel is open, and comes back after. Everything is frames drawn once and
+flipped on plain layers — the bubble a few times a second, the room fifteen,
+and only while it's open — so it costs next to nothing. `Tools/test-cuy.sh`
+tests its moods, its resting rotation, and how it gets around its room;
+`./Tools/preview-panel.sh cuy.png cuy` draws every frame, and `cuy-room` the room.
 
 ## Study Mode
 

@@ -98,6 +98,22 @@ struct NotchGeometry {
         return frameBelowNotch(content: content)
     }
 
+    /// The cuy's bubble, to the left of the bar.
+    static let cuyBubbleWidth: CGFloat = 46
+    static let cuyBubbleGap: CGFloat = 6
+
+    /// Where the cuy's bubble is, give or take a few points to the left —
+    /// resting the cursor here opens its room.
+    var cuyZone: NSRect {
+        let width = NotchGeometry.cuyBubbleWidth + NotchGeometry.revealMargin
+        return NSRect(x: barFrame.minX - NotchGeometry.cuyBubbleGap - width, y: barFrame.minY,
+                      width: width + NotchGeometry.cuyBubbleGap / 2,
+                      height: screen.frame.maxY - barFrame.minY)
+    }
+
+    /// The cuy's room, when it's open: the room and the gaps around it.
+    var cuyRoomFrame: NSRect { frameBelowNotch(content: 8 + 74 + 16) }
+
     /// The area that opens to take a drop.
     var dropFrame: NSRect { frameBelowNotch(content: NotchGeometry.dropContentHeight) }
 

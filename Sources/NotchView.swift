@@ -48,20 +48,22 @@ struct NotchView: View {
 
     private var expanded: Bool { model.isExpanded }
     private var dropping: Bool { model.isDropTarget }
+    private var room: Bool { model.isCuyRoom }
 
     /// Whether the bar itself has anything to show. With nothing playing and
     /// nothing in the clipboard, the notch is only up for the cuy, and the bar
     /// stays out of the way.
     private var barHasContent: Bool { model.track != nil || !model.shelf.isEmpty }
-    /// Grown below the notch, either way.
-    private var open: Bool { expanded || dropping }
+    /// Grown below the notch, any way.
+    private var open: Bool { expanded || dropping || room }
 
     /// The size the black grows to: the drop area while something's being
     /// dragged in, otherwise the panel — taller while the clipboard has
     /// something in it, and only the clipboard if nothing's playing.
     private var panel: NSRect {
         dropping ? geometry.dropFrame
-                 : geometry.panelFrame(player: model.track != nil, shelf: !model.shelf.isEmpty)
+            : room ? geometry.cuyRoomFrame
+            : geometry.panelFrame(player: model.track != nil, shelf: !model.shelf.isEmpty)
     }
 
     /// Slightly bouncy, and quick enough not to feel like waiting. The damping
@@ -101,6 +103,12 @@ struct NotchView: View {
                 .animation(open ? .easeOut(duration: 0.1)
                                 : .easeIn(duration: 0.14).delay(0.12),
                            value: open)
+
+            // The cuy's room, when it's the cuy's bubble you rested on.
+            CuyRoomPanel(geometry: geometry, isOpen: room)
+                .opacity(room ? 1 : 0)
+                .animation(room ? .easeOut(duration: 0.22).delay(0.1) : .easeIn(duration: 0.1), value: room)
+                .allowsHitTesting(room)
 
             // The open area that appears while something's dragged towards
             // the notch.

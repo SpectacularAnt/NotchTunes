@@ -10,7 +10,7 @@ import SwiftUI
 /// It stays one window throughout, sized to cover whichever state is showing.
 final class NotchWindow: NSPanel {
 
-    private enum Presentation { case hidden, tabs, expanded, dropTarget }
+    private enum Presentation { case hidden, tabs, expanded, dropTarget, room }
 
     private let model: NowPlayingModel
     private let control: PlayerControl
@@ -42,6 +42,10 @@ final class NotchWindow: NSPanel {
 
     /// Something is being dragged and is near the notch.
     private var dragApproaching = false
+
+    /// The cursor arrived on the cuy's bubble rather than the bar, so resting
+    /// there opens its room rather than the music panel.
+    private var cursorOnCuy = false
 
     private var shelfWatch: AnyCancellable?
     private var desktopsWatch: AnyCancellable?
@@ -157,7 +161,12 @@ final class NotchWindow: NSPanel {
         switch shown {
         case .expanded: return geometry.revealZone.union(currentPanelFrame.insetBy(dx: -12, dy: -12))
         case .dropTarget: return geometry.revealZone.union(geometry.dropFrame)
-        default: return geometry.revealZone
+        case .room:
+            return geometry.revealZone.union(geometry.cuyZone)
+                .union(geometry.cuyRoomFrame.insetBy(dx: -12, dy: -12))
+        default:
+            // The cuy's bubble counts as part of the notch while it's there.
+            return Settings.shared.cuyEnabled ? geometry.revealZone.union(geometry.cuyZone) : geometry.revealZone
         }
     }
 
@@ -209,6 +218,9 @@ final class NotchWindow: NSPanel {
     func setCursorIsOnNotch(_ value: Bool) {
         guard value != cursorIsOnNotch else { return }
         cursorIsOnNotch = value
+        if value {
+            cursorOnCuy = Settings.shared.cuyEnabled && geometry.cuyZone.contains(NSEvent.mouseLocation)
+        }
 
         hoverTimer?.invalidate()
         hoverTimer = nil
@@ -469,7 +481,11 @@ final class NotchWindow: NSPanel {
         guard somethingToOpen || cuy else { return .hidden }
         if menuIsOpen { return .expanded }
         // Only opens if there's a panel to open: the cuy on its own has none.
-        if cursorIsOnNotch && hoverDelayPassed && somethingToOpen { return .expanded }
+        if cursorIsOnNotch && hoverDelayPassed {
+            // On the cuy's bubble: its room. On the bar: the music panel.
+            if cursorOnCuy && cuy { return .room }
+            if somethingToOpen { return .expanded }
+        }
         // The cuy lives here, so it keeps the notch up.
         if Settings.shared.keepVisible || isPeeking || cuy { return .tabs }
         return .hidden
@@ -483,6 +499,7 @@ final class NotchWindow: NSPanel {
 
         model.isExpanded = (next == .expanded)
         model.isDropTarget = (next == .dropTarget)
+        model.isCuyRoom = (next == .room)
         model.isOnScreen = (next != .hidden)
         if next == .expanded { onExpand?() }
 
@@ -490,7 +507,7 @@ final class NotchWindow: NSPanel {
         // is coming — a window that ignores the mouse can't be dropped on.
         // Every other moment everything passes straight through to the menu
         // bar underneath.
-        ignoresMouseEvents = !(next == .expanded || next == .dropTarget)
+        ignoresMouseEvents = !(next == .expanded || next == .dropTarget || next == .room)
 
         if next != .hidden {
             orderFrontRegardless()

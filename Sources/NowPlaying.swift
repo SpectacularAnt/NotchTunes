@@ -73,6 +73,9 @@ final class NowPlayingModel: ObservableObject {
     /// area is open.
     @Published var isDropTarget = false
 
+    /// True while the panel is open as the cuy's room.
+    @Published var isCuyRoom = false
+
     /// True while Study Mode is on.
     @Published var isStudying = false
 

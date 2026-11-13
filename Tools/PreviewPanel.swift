@@ -21,6 +21,7 @@ import SwiftUI
 //   drop        the open area that appears while something's dragged in
 //   cuy         every frame of the cuy's three moods, big
 //   cuy-bar     the bar beside the notch, with the cuy's bubble
+//   cuy-room    the cuy's room, opened from its bubble
 //   viz-cover the visualizer's album cover style (COVER=path picks a cover)
 //   viz-bars  the visualizer's moving bars style
 
@@ -57,7 +58,8 @@ func renderPreview(to path: String, mode: String) {
 
     if mode == "cuy" {
         // Every frame of each mood, big, on black: standby, running, asleep.
-        let rows = [CuyArt.standby, CuyArt.running, CuyArt.sleeping]
+        let rows = [CuyArt.standby, CuyArt.loafing, CuyArt.grooming, CuyArt.nibbling, CuyArt.yawning,
+                    CuyArt.walking, CuyArt.running, CuyArt.popcorning, CuyArt.sleeping]
         let cell = CGSize(width: CuyArt.size.width * 4, height: CuyArt.size.height * 4)
         let columns = rows.map(\.count).max() ?? 1
         let canvas = NSImage(size: NSSize(width: cell.width * CGFloat(min(columns, 10)),
@@ -158,6 +160,14 @@ func renderPreview(to path: String, mode: String) {
     }
     if mode == "drop" { model.isDropTarget = true }
 
+    if mode == "cuy-room" {
+        Settings.shared.cuyEnabled = true
+        model.isOnScreen = true
+        model.isCuyRoom = true
+        write(NotchView(model: model, geometry: geometry, control: PlayerControl()), to: path)
+        Settings.shared.cuyEnabled = false
+        return
+    }
     if mode == "collapsed" || mode == "shelf-bar" || mode == "drop" || mode == "cuy-bar" {
         model.isOnScreen = true
         write(NotchView(model: model, geometry: geometry, control: PlayerControl()), to: path)
