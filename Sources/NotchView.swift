@@ -44,8 +44,15 @@ struct NotchView: View {
     let geometry: NotchGeometry
     let control: PlayerControl
 
+    @ObservedObject private var settings = Settings.shared
+
     private var expanded: Bool { model.isExpanded }
     private var dropping: Bool { model.isDropTarget }
+
+    /// Whether the bar itself has anything to show. With nothing playing and
+    /// nothing in the clipboard, the notch is only up for the cuy, and the bar
+    /// stays out of the way.
+    private var barHasContent: Bool { model.track != nil || !model.shelf.isEmpty }
     /// Grown below the notch, either way.
     private var open: Bool { expanded || dropping }
 
@@ -63,11 +70,25 @@ struct NotchView: View {
     private static let grow = Animation.spring(response: 0.34, dampingFraction: 0.78)
 
     var body: some View {
-        ZStack(alignment: .top) {
+        let cuyShown = settings.cuyEnabled && model.isOnScreen && !open
+
+        return ZStack(alignment: .top) {
+            // The cuy's bubble, beside the bar on the left. Steps aside while
+            // the panel or the drop area is open, and comes back after.
+            CuyBubble(height: geometry.barFrame.height, isVisible: cuyShown)
+                .offset(x: -(geometry.barFrame.width / 2 + CuyBubble.gap + CuyBubble.width / 2))
+                .opacity(cuyShown ? 1 : 0)
+                .scaleEffect(cuyShown ? 1 : 0.6, anchor: .top)
+                .animation(cuyShown ? .spring(response: 0.4, dampingFraction: 0.75).delay(0.1)
+                                    : .easeIn(duration: 0.12),
+                           value: cuyShown)
+                .allowsHitTesting(false)
+
             NotchShape(bottomRadius: open ? NotchGeometry.panelCornerRadius : 11)
                 .fill(Color.black)
                 .frame(width: open ? panel.width : geometry.barFrame.width,
                        height: open ? panel.height : geometry.barFrame.height)
+                .opacity(open || barHasContent ? 1 : 0)
                 // Springs on opening and closing, and on growing or shrinking
                 // while open — the clipboard arriving, or being cleared.
                 .animation(NotchView.grow, value: open)
@@ -76,7 +97,7 @@ struct NotchView: View {
             // Leaves quickly on the way out, and comes back only once the shape
             // has shrunk back down, so it never shows against the wrong size.
             barContents
-                .opacity(open ? 0 : 1)
+                .opacity(open || !barHasContent ? 0 : 1)
                 .animation(open ? .easeOut(duration: 0.1)
                                 : .easeIn(duration: 0.14).delay(0.12),
                            value: open)

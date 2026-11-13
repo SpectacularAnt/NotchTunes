@@ -13,6 +13,7 @@ final class Settings: ObservableObject {
         static let barsFollowMusic = "barsFollowMusic"
         static let barBounce = "barBounce"
         static let barLoudness = "barLoudness"
+        static let cuyEnabled = "cuyEnabled"
         static let allDesktops = "allDesktops"
         static let studyBlocksDock = "studyBlocksDock"
         static let studyBatteryThreshold = "studyBatteryThreshold"
@@ -88,6 +89,11 @@ final class Settings: ObservableObject {
         }
     }
 
+    /// Whether the cuy lives beside the notch.
+    @Published var cuyEnabled: Bool {
+        didSet { UserDefaults.standard.set(cuyEnabled, forKey: Key.cuyEnabled) }
+    }
+
     private init() {
         let defaults = UserDefaults.standard
         defaults.register(defaults: [Key.hoverDelay: 0.0,
@@ -98,6 +104,7 @@ final class Settings: ObservableObject {
                                      Key.barsFollowMusic: true,
                                      Key.barBounce: 0.5,
                                      Key.barLoudness: 0.5,
+                                     Key.cuyEnabled: false,
                                      Key.allDesktops: false,
                                      Key.studyBlocksDock: false,
                                      Key.studyBatteryThreshold: 20.0])
@@ -112,6 +119,7 @@ final class Settings: ObservableObject {
         studyBlocksDock = defaults.bool(forKey: Key.studyBlocksDock)
         studyBatteryThreshold = defaults.double(forKey: Key.studyBatteryThreshold)
         barLoudness = defaults.double(forKey: Key.barLoudness)
+        cuyEnabled = defaults.bool(forKey: Key.cuyEnabled)
         // didSet doesn't run during init, so hand the saved values over here.
         AudioLevels.shared.bounce = Float(barBounce)
         AudioLevels.shared.loudness = Float(barLoudness)

@@ -19,6 +19,8 @@ import SwiftUI
 //   shelf-only  the panel with nothing playing: just the clipboard
 //   shelf-bar   the bar with nothing playing and the clipboard in use
 //   drop        the open area that appears while something's dragged in
+//   cuy         every frame of the cuy's three moods, big
+//   cuy-bar     the bar beside the notch, with the cuy's bubble
 //   viz-cover the visualizer's album cover style (COVER=path picks a cover)
 //   viz-bars  the visualizer's moving bars style
 
@@ -49,6 +51,36 @@ func renderPreview(to path: String, mode: String) {
     // The bars are normally drawn as layers, which this renderer can't see.
     Waveform.drawForSnapshot = true
     isRenderingPreview = true
+    CuyView.drawForSnapshot = true
+    // Set either way: the preview keeps its own saved settings between runs.
+    Settings.shared.cuyEnabled = mode == "cuy-bar"
+
+    if mode == "cuy" {
+        // Every frame of each mood, big, on black: standby, running, asleep.
+        let rows = [CuyArt.standby, CuyArt.running, CuyArt.sleeping]
+        let cell = CGSize(width: CuyArt.size.width * 4, height: CuyArt.size.height * 4)
+        let columns = rows.map(\.count).max() ?? 1
+        let canvas = NSImage(size: NSSize(width: cell.width * CGFloat(min(columns, 10)),
+                                          height: cell.height * CGFloat(rows.reduce(0) { $0 + ($1.count + 9) / 10 })),
+                             flipped: true) { rect in
+            NSColor.black.setFill(); rect.fill()
+            var y: CGFloat = 0
+            for frames in rows {
+                for (i, frame) in frames.enumerated() {
+                    let x = CGFloat(i % 10) * cell.width
+                    let row = CGFloat(i / 10) * cell.height
+                    NSImage(cgImage: frame, size: cell).draw(in: NSRect(x: x, y: y + row, width: cell.width, height: cell.height))
+                }
+                y += cell.height * CGFloat((frames.count + 9) / 10)
+            }
+            return true
+        }
+        guard let tiff = canvas.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else { exit(1) }
+        try! png.write(to: URL(fileURLWithPath: path))
+        print("wrote \(path)")
+        return
+    }
 
     if mode == "study" || mode == "study-start" {
         // The right-hand end of the strip, with a timer running, the battery
@@ -126,7 +158,7 @@ func renderPreview(to path: String, mode: String) {
     }
     if mode == "drop" { model.isDropTarget = true }
 
-    if mode == "collapsed" || mode == "shelf-bar" || mode == "drop" {
+    if mode == "collapsed" || mode == "shelf-bar" || mode == "drop" || mode == "cuy-bar" {
         model.isOnScreen = true
         write(NotchView(model: model, geometry: geometry, control: PlayerControl()), to: path)
         return

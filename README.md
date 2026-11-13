@@ -101,6 +101,7 @@ while it's open). Changes apply straight away and are remembered.
 | Moving bars follow the music | On | The bars listen to the music and move with it. Off, they move on their own pattern. The line beneath says whether it can hear anything right now. See below. |
 | How bouncy the bars are | Middle | From **Calm** to **Bouncy**: how big a beat has to be to send the bars to the top, how quickly they drop back, and — toward Calm — how much beats move them at all. The middle is how they were tuned. Only used while the bars follow the music. |
 | How much loudness shapes the bars | Middle | From **Beats** to **Loudness**. Toward Beats, the bars only jump on the beat, and a quiet verse looks like a loud chorus. Toward Loudness, the whole glyph is scaled by how loud this part of the song is against its loudest over the last half-minute or so: choruses stand tall, quiet verses stay low. The middle is how the bars were before the slider existed. |
+| Keep a cuy on the notch | Off | A tiny guinea pig in a bubble beside the notch. See The cuy. |
 | Keep the Dock away in Study Mode | Off | The Dock won't appear while Study Mode is on. See Study Mode. |
 | Show the battery in Study Mode | 20% | The battery appears in the strip once it's at or below this level. All the way right shows it always. |
 
@@ -294,6 +295,7 @@ shows other windows behind the notch.
 | `Sources/Waveform.swift` | The moving bars, and the colours taken from the cover: one to tint the bars, two for the visualizer's background. The bars are decorative: following the real sound would need permission to record it. |
 | `Sources/Visualizer.swift` | The visualizer window and its two styles. |
 | `Sources/Shelf.swift` | The clipboard: what a drop turns into, and dragging things back out. |
+| `Sources/Cuy.swift` | The cuy: its moods, its art, and its bubble. |
 | `Sources/StudyMode.swift` | Study Mode: the strip over the menu bar, its clock, battery and timer, holding to end it, and the Dock cover. |
 | `Sources/Updater.swift` | Check for Updates: asks GitHub for the latest release, and installs it. |
 | `Sources/SystemNowPlaying.swift` | Podcasts, through macOS's Now Playing service and the helper in `Helper/`. |
@@ -412,6 +414,27 @@ two tests about holding controls fail.
 The hold has to *begin* on empty panel space, with the panel already open. A
 press that started somewhere else and was dragged in doesn't count, and nor does
 one still held from before the panel opened.
+
+## The cuy
+
+An opt-in companion (Settings ▸ **Keep a cuy on the notch**): a tiny guinea pig
+that lives in its own small black bubble to the left of the notch's bar — the
+way the Dynamic Island shows a second bubble beside the main one. It's drawn
+like the notch's other glyphs: plain white shapes on black.
+
+- **Standby:** sits, breathes, blinks now and then, twitches an ear, sniffs.
+- **Asleep** from 11 PM to 7 AM: lies flat, eye closed, breathing slowly, with
+  little z's drifting up.
+- **Running** when the Mac's memory is busy — three-quarters used or more,
+  counted the way Activity Monitor's "Memory Used" is — scurrying in place,
+  faster the fuller memory gets. Busy memory wakes it even at night.
+
+It keeps the notch up even with nothing playing (it lives there), steps aside
+while the panel is open, and comes back after. Each mood is a handful of
+frames drawn once and flipped a few times a second on a plain layer, so it
+costs next to nothing; it checks the hour and memory every five seconds, and
+only while it's switched on. `Tools/test-cuy.sh` tests its moods, and
+`./Tools/preview-panel.sh cuy.png cuy` draws every frame.
 
 ## Study Mode
 

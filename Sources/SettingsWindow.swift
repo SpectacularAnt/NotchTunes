@@ -9,7 +9,7 @@ final class SettingsWindowController {
     func show() {
         if window == nil {
             let panel = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 380, height: 760),
+                contentRect: NSRect(x: 0, y: 0, width: 380, height: 900),
                 styleMask: [.titled, .closable],
                 backing: .buffered,
                 defer: false)
@@ -128,6 +128,17 @@ struct SettingsView: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 5) {
+                Toggle("Keep a cuy on the notch", isOn: $settings.cuyEnabled)
+                    .font(.system(size: 12, weight: .semibold))
+                Text("A tiny guinea pig beside the notch. It sleeps at night and runs when your Mac's memory is busy.")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 5) {
                 Toggle("Keep the Dock away in Study Mode", isOn: $settings.studyBlocksDock)
                     .font(.system(size: 12, weight: .semibold))
                 Text("It won't appear until Study Mode ends. It restarts for a moment as Study Mode starts and ends.")
@@ -152,7 +163,7 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
         }
         .padding(22)
-        .frame(width: 380, height: 760)
+        .frame(width: 380, height: 900)
     }
 
     /// One line on whether the bars can actually hear anything.

@@ -45,6 +45,7 @@ final class NotchWindow: NSPanel {
 
     private var shelfWatch: AnyCancellable?
     private var desktopsWatch: AnyCancellable?
+    private var cuyWatch: AnyCancellable?
 
     /// True while a full-screen app is in front — only tracked while the
     /// notch is on every desktop, since that's when it could end up on top
@@ -107,6 +108,11 @@ final class NotchWindow: NSPanel {
         // be: clearing it with nothing playing hides the notch altogether.
         // Waits a turn, because this is told just *before* the change lands.
         shelfWatch = model.$shelf.dropFirst().sink { [weak self] _ in
+            DispatchQueue.main.async { self?.applyPresentation() }
+        }
+
+        // Switching the cuy on or off can bring the notch up, or let it go.
+        cuyWatch = Settings.shared.$cuyEnabled.dropFirst().sink { [weak self] _ in
             DispatchQueue.main.async { self?.applyPresentation() }
         }
 
@@ -456,12 +462,16 @@ final class NotchWindow: NSPanel {
         if Settings.shared.allDesktops && fullScreenInFront { return .hidden }
         // A drag on its way in beats everything, song or no song.
         if dragApproaching { return .dropTarget }
-        // Otherwise there has to be something to show: a song, or something
-        // kept in the clipboard.
-        guard hasTrack || !model.shelf.isEmpty else { return .hidden }
+        // Otherwise there has to be something to show: a song, something kept
+        // in the clipboard, or the cuy.
+        let somethingToOpen = hasTrack || !model.shelf.isEmpty
+        let cuy = Settings.shared.cuyEnabled
+        guard somethingToOpen || cuy else { return .hidden }
         if menuIsOpen { return .expanded }
-        if cursorIsOnNotch && hoverDelayPassed { return .expanded }
-        if Settings.shared.keepVisible || isPeeking { return .tabs }
+        // Only opens if there's a panel to open: the cuy on its own has none.
+        if cursorIsOnNotch && hoverDelayPassed && somethingToOpen { return .expanded }
+        // The cuy lives here, so it keeps the notch up.
+        if Settings.shared.keepVisible || isPeeking || cuy { return .tabs }
         return .hidden
     }
 

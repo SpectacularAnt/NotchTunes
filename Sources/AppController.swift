@@ -30,6 +30,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuItemValidation
     private var pollTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Starts watching the hour and the memory if the cuy is switched on.
+        _ = CuyWatcher.shared
+
         // If NotchTunes closed while Study Mode was keeping the Dock away, put
         // the Dock back.
         DockSuppressor.restoreIfLeftAway()
