@@ -144,7 +144,7 @@ struct SettingsView: View {
         guard settings.barsFollowMusic else { return "The bars move on their own pattern." }
         switch audio.status {
         case .following: return "Listening to the music now."
-        case .silent: return "The music comes through silent, so the bars use their own pattern."
+        case .silent: return "Hearing only silence. If the permission was turned down, the bars use their own pattern."
         case .unavailable: return "macOS wouldn't allow listening, so the bars use their own pattern."
         case .idle: return "Listens while music is playing."
         }

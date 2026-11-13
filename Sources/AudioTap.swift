@@ -12,17 +12,34 @@ final class AudioLevels {
     private var levels = [Float](repeating: 0, count: BandAnalyser.bandCount)
     private var updated = Date.distantPast
     private var following = false
+    private var patternInstead = true
 
     /// The bar heights, by bar (left to right), 0...1, already in the island's
-    /// shape — or nil when the bars
-    /// should use their own pattern instead: nothing is being heard, or what is
-    /// heard is silence.
+    /// shape — or nil when the bars should move on their own pattern instead.
+    ///
+    /// The pattern is only the stand-in for when NotchTunes *can't* listen:
+    /// switched off in Settings, or the recording permission declined. It used
+    /// to take over whenever nothing was being heard, too — and the moment
+    /// between two songs is exactly that, so the pattern played at every song
+    /// change. Now a quiet moment just lets the bars settle, and the next song
+    /// picks them up again.
     func current() -> [Float]? {
         os_unfair_lock_lock(&lock)
         defer { os_unfair_lock_unlock(&lock) }
-        // Half a second without news means the sound has stopped arriving.
-        guard following, Date().timeIntervalSince(updated) < 0.5 else { return nil }
-        return levels
+        if patternInstead { return nil }
+        // Sound still arriving: the bars as they are.
+        let age = Date().timeIntervalSince(updated)
+        if age < 0.5 { return levels }
+        // Nothing arriving at all — the listener restarting, say: let what
+        // was there fall away over a third of a second, rather than snap.
+        let fade = Float(max(0, 1 - (age - 0.5) / 0.3))
+        return levels.map { $0 * fade }
+    }
+
+    fileprivate func setPatternInstead(_ value: Bool) {
+        os_unfair_lock_lock(&lock)
+        patternInstead = value
+        os_unfair_lock_unlock(&lock)
     }
 
     private var heard = Date.distantPast
@@ -125,6 +142,7 @@ final class AudioFollower: ObservableObject {
         case "Podcasts": bundleID = "com.apple.podcasts"
         default: bundleID = "com.apple.Music"
         }
+        defer { choosePattern(enabled: enabled) }
         guard enabled, isPlaying, app != nil, let pid = Self.pid(of: bundleID) else {
             scheduleStop(immediately: !enabled)
             return
@@ -187,10 +205,54 @@ final class AudioFollower: ObservableObject {
 
     /// Decides between "following" and "silent". A protected stream, or a
     /// permission turned down, both arrive as perfect silence.
+    // MARK: Pattern or live
+
+    /// Set once music has ever actually been heard. A declined permission and
+    /// a quiet moment both arrive as perfect silence; having heard music
+    /// before is how the two are told apart. Remembered between launches.
+    private static let heardKey = "audioHeardBefore"
+    private var heardBefore: Bool {
+        get { UserDefaults.standard.bool(forKey: Self.heardKey) }
+        set { UserDefaults.standard.set(newValue, forKey: Self.heardKey) }
+    }
+
+    /// When the current stretch of silence began, while playing.
+    private var silentSince: Date?
+
+    private func choosePattern(enabled: Bool) {
+        let silentFor = silentSince.map { Date().timeIntervalSince($0) } ?? 0
+        AudioLevels.shared.setPatternInstead(Self.shouldUsePattern(
+            enabled: enabled, status: status, heardBefore: heardBefore, silentFor: silentFor))
+    }
+
+    /// Whether the bars should move on their own pattern rather than follow
+    /// the music. Kept as plain logic so Tools/test-study.sh can test it.
+    static func shouldUsePattern(enabled: Bool, status: Status, heardBefore: Bool,
+                                 silentFor: TimeInterval) -> Bool {
+        guard enabled else { return true }                  // switched off in Settings
+        switch status {
+        case .unavailable:
+            return true                                     // macOS wouldn't set it up
+        case .silent:
+            // Never heard anything: almost certainly the permission was
+            // declined. Heard music before: just a quiet moment — unless it
+            // has gone on so long that the permission was probably taken away.
+            return !heardBefore || silentFor > 20
+        case .following, .idle:
+            return false
+        }
+    }
+
     private func checkForSilence() {
         guard tap != nil else { return }
         let hearing = Date().timeIntervalSince(AudioLevels.shared.lastHeard) < 1.0
         AudioLevels.shared.setFollowing(hearing)
+        if hearing {
+            silentSince = nil
+            if !heardBefore { heardBefore = true }
+        } else if silentSince == nil {
+            silentSince = Date()
+        }
 
         let next: Status
         if hearing {
@@ -220,6 +282,7 @@ final class AudioFollower: ObservableObject {
     private func stop() {
         stopTimer?.invalidate()
         stopTimer = nil
+        silentSince = nil           // a pause isn't silence
         generation += 1
         // Taken down off the main thread too, for the same reason.
         if #available(macOS 14.2, *), let old = tap as? ProcessTap {

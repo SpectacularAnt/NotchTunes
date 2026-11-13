@@ -51,5 +51,17 @@ if let geometry = NotchGeometry.current() {
     check("as tall as the notch", strip.height == geometry.notch.height.rounded(), "\(strip.height)pt")
 }
 
+// The bars' own pattern: only when NotchTunes can't listen.
+let pattern = AudioFollower.shouldUsePattern
+check("switched off in Settings: the pattern", pattern(false, .following, true, 0))
+check("macOS wouldn't allow listening: the pattern", pattern(true, .unavailable, true, 0))
+check("silence, never heard anything: the pattern (permission declined)", pattern(true, .silent, false, 5))
+check("the gap between two songs: no pattern, the bars just settle", !pattern(true, .silent, true, 2))
+check("a long quiet intro: still no pattern", !pattern(true, .silent, true, 15))
+check("silence for over 20 seconds after hearing music: the pattern (permission taken away?)",
+      pattern(true, .silent, true, 25))
+check("hearing the music: no pattern", !pattern(true, .following, true, 0))
+check("starting up, not heard anything yet: no pattern", !pattern(true, .idle, false, 0))
+
 print(failures == 0 ? "\nall passed" : "\n\(failures) failed")
 exit(failures == 0 ? 0 : 1)

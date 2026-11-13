@@ -517,9 +517,13 @@ there. It stops listening a few seconds after you pause.
   choose **System Audio Recording Only**; it never sees the screen. You'll find
   it later in System Settings → Privacy & Security → Screen & System Audio
   Recording. As with any permission, a rebuild may need it switched off and on.
-- **Protected music.** If macOS hands over silence — a stream it protects, or
-  the permission turned down — the bars notice after a few seconds and fall back
-  to their own pattern. Settings says which is happening.
+- **Their own pattern is only a stand-in** for when NotchTunes can't listen:
+  switched off in Settings, or the permission declined. A quiet moment — the gap
+  between two songs, a silent intro — just lets the bars settle, and the next
+  song picks them up. (A declined permission and a quiet moment both arrive as
+  silence; once NotchTunes has heard music at all, it knows the permission is
+  there. Over 20 seconds of silence while playing is taken to mean it's been
+  taken away, and the pattern returns.)
 - Nothing is recorded or kept: the sound goes straight into the band maths and
   is gone.
 
